@@ -1,0 +1,56 @@
+{
+  "feature_name": "Voyage planning",
+  "overall_coverage_pct": 20.0,
+  "p1_safety_coverage_pct": 0.0,
+  "quality_score": 65.3,
+  "dimensions": {
+    "req_coverage": 20.0,
+    "boundary_coverage": 100,
+    "negative_coverage": 100,
+    "reg_traceability": 57.1
+  },
+  "gaps": [
+    "Partially covered: Voyage plan must cover entire voyage from berth to berth",
+    "Partially covered: Bunker margin < 5% on arrival (propulsion failure risk)",
+    "Partially covered: Bunker margin 5-15% on arrival (remedial action recommended)",
+    "Partially covered: FAL Form 1 (General Declaration) required for all vessel arrivals"
+  ],
+  "critical_gaps": [
+    "[SAFETY] Partial coverage only: 'FAL Form 1 (General Declaration) required for all vessel arrivals' \u2014 closest scenario: 'P1 Safety Critical - Missing FAL Form 1 for vessel arrival'"
+  ],
+  "risk_level": "HIGH",
+  "recommendations": [
+    "Add test coverage for: [SAFETY] Partial coverage only: 'FAL Form 1 (General Declaration) required for all vessel arrivals' \u2014 closest scenario: 'P1 Safety Critical - Missing FAL Form 1 for vessel arrival'",
+    "P1 safety coverage is 0.0% \u2014 all safety-critical scenarios must reach 100%"
+  ],
+  "summary": "Quality Score: 65.3/100 | P1: 0.0% | Coverage: 20.0%",
+  "p1_count": 2,
+  "p2_count": 3,
+  "p3_count": 2,
+  "psc_detention_triggers": [
+    "Voyage without waypoints (incomplete passage plan)",
+    "Weather deviation not confirmed by Master",
+    "Bunker margin < 5% on arrival",
+    "Missing FAL Form 1 for vessel arrival"
+  ],
+  "regulation_coverage": [
+    {
+      "regulation": "COLREGS 1972",
+      "total": 1,
+      "covered": 0,
+      "coverage_pct": 0.0
+    },
+    {
+      "regulation": "General / Operational",
+      "total": 3,
+      "covered": 0,
+      "coverage_pct": 0.0
+    },
+    {
+      "regulation": "FAL Convention / ISPS Code",
+      "total": 1,
+      "covered": 1,
+      "coverage_pct": 100.0
+    }
+  ]
+}

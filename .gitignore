@@ -1,0 +1,35 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+dist/
+build/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.env
+
+# Playwright
+test-results/
+playwright-report/
+outputs/typescript/test-results/
+
+# ChromaDB / runtime data
+memory/chroma_db/
+memory/*.db
+memory/checkpoints.db
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

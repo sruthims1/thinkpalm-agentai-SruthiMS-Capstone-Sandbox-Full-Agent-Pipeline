@@ -1,0 +1,57 @@
+Feature: Voyage Planning
+
+The mock maritime app at http://localhost:5000/voyage supports end-to-end voyage planning for vessels.
+
+Page: /voyage
+The page shows a voyage register table with columns: Voyage ID, Vessel, Route, Departure, ETA, Distance, Bunker, ECA Zones, Status, Action.
+Active voyages in piracy-risk areas show a red .departure-block banner with text "PIRACY ALERT: <vessel> — Active voyage <id> passes through high-risk area."
+
+Pre-seeded voyages:
+- VOY-2026-045: MV Oceanic Pioneer, Houston → Rotterdam, departure 2026-06-01, 5420 nm, VLSFO, 1850 MT bunker, 2 ECA zones (North Sea ECA, English Channel ECA), status: Planned, no piracy alert
+- VOY-2026-046: MV Star Nour, Singapore → Chiba, departure 2026-06-17, 3320 nm, VLSFO, 980 MT bunker, no ECA zones, status: Active, piracy_alert: true (Malacca Strait / South China Sea), weather_routing: weather_deviation
+
+UI elements on the page:
+- Voyage register table: <table class="table table-hover mb-0"> inside .card-body
+- Piracy alert banner: .departure-block (shown on page load without user interaction)
+- ECA zone badge per row: <span class="badge bg-warning text-dark"> showing zone count
+- No-ECA badge: <span class="badge bg-success"> with text "None"
+- Status badge: Active = <span class="badge bg-success">Active</span>, Planned = <span class="badge bg-primary">Planned</span>
+- Details button per row: <button onclick="showVoyageDetails('<id>')"> — shows #voyageDetailCard div
+- Plan New Voyage button: [data-bs-target='#newVoyageModal']
+
+Voyage detail panel (#voyageDetailCard, hidden by default):
+- Route waypoints list
+- ECA zone compliance alert
+- Fuel planning table (fuel type, consumption, margin)
+- Weather deviation alert: #weather-deviation-alert (text: "Typhoon in South China Sea. Route deviation recommended. ETA revised +12 hours.")
+- Confirm Route Deviation button: #confirmDeviationBtn (submits POST /voyage/confirm-deviation)
+- After confirming: flash message "Route deviation confirmed. ETA updated." and redirect to /voyage
+
+Plan New Voyage modal (#newVoyageModal):
+Form fields:
+- select[name='vessel'] — options: "MV Oceanic Pioneer", "MV Star Nour"
+- select[name='fuel_type'] — options: "VLSFO (0.5% Sulphur)", "MGO (ECA compliant)", "LNG"
+- input[name='departure_port'] — text, required (e.g. "Port of Singapore")
+- input[name='arrival_port'] — text, required (e.g. "Port of Rotterdam")
+- input[name='departure_date'] — date, required
+- input[name='speed_kts'] — number, required (valid range: 5–25 knots)
+- input[name='bunker_qty'] — number, required (must be positive)
+- input[name='distance_nm'] — number, required
+- Submit: #createVoyageBtn → POST /voyage/new → redirect back to /voyage with flash message "Voyage VOY-2026-0XX created successfully."
+
+Core test scenarios to cover:
+- Voyage register table loads with pre-seeded data on page load
+- Piracy alert banner auto-visible for VOY-2026-046 (MV Star Nour) without user interaction
+- ECA zone count badge (bg-warning) visible for VOY-2026-045 (Houston → Rotterdam, 2 ECA zones)
+- No-ECA badge (bg-success, text "None") visible for VOY-2026-046
+- Planned status badge visible for VOY-2026-045; Active badge for VOY-2026-046
+- Click Details button → voyage detail panel becomes visible
+- Weather deviation alert (#weather-deviation-alert) visible in detail panel for VOY-2026-046
+- Click #confirmDeviationBtn → POST submitted → flash "Route deviation confirmed. ETA updated."
+- Plan a new voyage with all valid fields → voyage appears in table with Planned status
+- Plan new voyage with MGO fuel type for ECA-zone route
+- Boundary: speed = 5 knots (minimum valid), speed = 25 knots (maximum valid)
+- Boundary: bunker quantity at minimum positive value (e.g. 1 MT)
+
+Regulations: MARPOL Annex VI Regulation 14 (ECA zone sulphur 0.1% limit), IMO MSC-FAL.1/Circ.3 (piracy BMP5), SOLAS Chapter V (weather routing), COLREGS 1972.
+Safety classification: HIGH — incorrect fuel planning or ignored piracy alerts can endanger crew and vessel.

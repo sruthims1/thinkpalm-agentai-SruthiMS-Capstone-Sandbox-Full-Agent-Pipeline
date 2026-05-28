@@ -1,0 +1,20 @@
+Feature: Crew Certification Expiry Management
+
+The MarineOps system tracks STCW and flag-state certificates for all crew members aboard managed vessels.
+
+Core Requirements:
+- The system maintains a certification register with crew name, rank, certificate type, certificate number, issue date, and expiry date.
+- Certificate status is automatically calculated daily: Valid (more than 30 days to expiry), Expiring Soon (within 30 days), Expired (past expiry date).
+- A warning alert is displayed for any crew member whose certificate expires within 30 days.
+- A critical alert is triggered and a notification is sent to the fleet manager and superintendent when a certificate expires within 7 days.
+- Any expired certificate blocks vessel departure. A VESSEL DEPARTURE BLOCKED banner is displayed.
+- The departure block cannot be overridden without superintendent authorisation.
+- Authorised users can renew a certificate by entering a new expiry date and certificate number.
+- Upon successful renewal, the system recalculates status and removes the departure block if all certificates are valid.
+- A filter allows users to view crew by status: All, Expired, Expiring Soon, Valid.
+- The system must display the number of days remaining or days overdue for each certificate.
+- Minimum one valid Medical Fitness Certificate must be present on the vessel at all times.
+- GMDSS certificate must be held by at least one navigating officer per watch.
+
+Regulations: STCW Convention (as amended 2010), MLC 2006, Flag State Requirements.
+Safety classification: CRITICAL — expired certificates can result in Port State Control detention and vessel unseaworthiness.

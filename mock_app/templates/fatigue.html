@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Fatigue Management{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h3 class="mb-1"><i class="bi bi-clock-history me-2"></i>Crew Fatigue Management</h3>
+  <p class="mb-0 opacity-75">MLC 2006 / STCW compliance — minimum 10h rest per 24h, 77h rest per 7 days</p>
+</div>
+
+{% for officer in violations %}
+<div class="departure-block" id="fatigue-violation-{{ officer.id }}">
+  <i class="bi bi-exclamation-octagon me-2"></i>
+  <strong>FATIGUE VIOLATION:</strong> {{ officer.name }} ({{ officer.rank }}) —
+  Rest {{ officer.rest_24h }}h in last 24h (minimum {{ officer.min_rest_24h }}h required).
+  Watch reassignment required.
+</div>
+{% endfor %}
+
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-danger">{{ violation_count }}</div>
+      <div class="label">Active Violations</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-success">{{ compliant_count }}</div>
+      <div class="label">Compliant Officers</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-primary">{{ total_count }}</div>
+      <div class="label">Total Officers Tracked</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-warning">PSC</div>
+      <div class="label">Audit Risk: Medium</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-primary text-white">
+    <i class="bi bi-table me-2"></i>Rest Hours Register — Last 7 Days
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Officer</th><th>Rank</th><th>Watch</th>
+          <th>Rest (24h)</th><th>Min Required</th>
+          <th>Rest (7d)</th><th>Min Required</th>
+          <th>Status</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for officer in all_officers %}
+        <tr>
+          <td><strong>{{ officer.name }}</strong></td>
+          <td>{{ officer.rank }}</td>
+          <td><span class="badge bg-secondary">{{ officer.watch }}</span></td>
+          <td>
+            <span class="{{ 'text-danger fw-bold' if officer.rest_24h < officer.min_rest_24h else 'text-success' }}">
+              {{ officer.rest_24h }}h
+            </span>
+          </td>
+          <td class="text-muted">{{ officer.min_rest_24h }}h</td>
+          <td>
+            <span class="{{ 'text-danger fw-bold' if officer.rest_7d < officer.min_rest_7d else 'text-success' }}">
+              {{ officer.rest_7d }}h
+            </span>
+          </td>
+          <td class="text-muted">{{ officer.min_rest_7d }}h</td>
+          <td>
+            {% if officer.status == 'violation' %}
+              <span class="badge-violation">Violation</span>
+            {% else %}
+              <span class="badge-compliant">Compliant</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if officer.status == 'violation' %}
+              <button class="btn btn-sm btn-outline-warning" onclick="reassignWatch('{{ officer.name }}')">
+                <i class="bi bi-arrow-repeat me-1"></i>Reassign Watch
+              </button>
+            {% else %}
+              <span class="text-muted small">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-secondary text-white"><i class="bi bi-pencil me-2"></i>Log Rest Hours</div>
+  <div class="card-body">
+    <form method="POST" action="/fatigue/log" id="restHoursForm">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Officer</label>
+          <select class="form-select" name="officer_id" required>
+            {% for o in all_officers %}
+            <option value="{{ o.id }}">{{ o.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Rest Period Start</label>
+          <input type="datetime-local" class="form-control" name="rest_start" required/>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Rest Period End</label>
+          <input type="datetime-local" class="form-control" name="rest_end" required/>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100" id="logRestBtn">
+            <i class="bi bi-check-circle me-1"></i>Log Rest Hours
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if flash_message %}
+<div class="alert alert-{{ flash_type }} alert-dismissible fade show" id="flashMessage" role="alert">
+  {{ flash_message }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+{% block scripts %}
+<script>
+function reassignWatch(name) {
+  alert('Watch reassignment initiated for ' + name + '.\nDuty officer has been notified.');
+}
+</script>
+{% endblock %}
+{% endblock %}

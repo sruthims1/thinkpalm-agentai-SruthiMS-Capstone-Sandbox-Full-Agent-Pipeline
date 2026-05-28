@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h3 class="mb-1"><i class="bi bi-speedometer2 me-2"></i>Fleet Operations Dashboard</h3>
+  <p class="mb-0 opacity-75">Real-time overview — MV Oceanic Pioneer &amp; MV Star Nour</p>
+</div>
+
+<div class="row g-4 mb-4">
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-danger">{{ stats.expired_certs }}</div>
+      <div class="label">Expired Certifications</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-warning">{{ stats.expiring_soon }}</div>
+      <div class="label">Expiring Within 30 Days</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-danger">{{ stats.fatigue_violations }}</div>
+      <div class="label">Fatigue Violations</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card stat-card">
+      <div class="number text-warning">{{ stats.open_incidents }}</div>
+      <div class="label">Open Incidents</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-danger text-white"><i class="bi bi-exclamation-circle me-2"></i>Critical Alerts</div>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div><strong>Tom Walsh</strong> — GMDSS Certificate <span class="badge-expired">EXPIRED</span></div>
+            <a href="/crew-certs" class="btn btn-sm btn-outline-danger">View</a>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div><strong>Capt. Whitfield</strong> — Rest hours 9.5h &lt; 10h min <span class="badge-violation">VIOLATION</span></div>
+            <a href="/fatigue" class="btn btn-sm btn-outline-danger">View</a>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div><strong>INC-2026-001</strong> — Near miss overdue review <span class="badge-high">HIGH</span></div>
+            <a href="/incidents" class="btn btn-sm btn-outline-danger">View</a>
+          </li>
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <div><strong>MV Star Nour</strong> — Piracy alert on active voyage</div>
+            <a href="/voyage" class="btn btn-sm btn-outline-warning">View</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header bg-primary text-white"><i class="bi bi-calendar-check me-2"></i>Upcoming Port Calls</div>
+      <div class="card-body p-0">
+        <table class="table mb-0">
+          <thead><tr><th>Vessel</th><th>Port</th><th>ETA</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>MV Oceanic Pioneer</td><td>Rotterdam</td><td>10 Jun 2026</td>
+              <td><span class="badge bg-warning text-dark">Pre-Arrival</span></td>
+            </tr>
+            <tr>
+              <td>MV Star Nour</td><td>Singapore</td><td>15 Jun 2026</td>
+              <td><span class="badge bg-success">In Port</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

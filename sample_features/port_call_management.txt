@@ -1,0 +1,20 @@
+Feature: Port Call Management
+
+The system manages the full port call lifecycle from pre-arrival notification through port clearance and departure.
+
+Core Requirements:
+- The system maintains a port call register with vessel name, port, ETA, ETD, notification statuses, customs clearance status, and agent details.
+- Users can create a new port call by entering vessel, port, ETA, ETD, dangerous goods flag, and agent name.
+- ETD must be validated to be after ETA. ETA in the past triggers a warning.
+- A 96-hour pre-arrival notification is mandatory for all EU port entries and must be tracked.
+- A 24-hour pre-arrival notice must be submitted by entering agent name, expected cargo quantity, and last port of call.
+- FAL Form 1 (General Declaration), FAL Form 5 (Crew List), and FAL Form 6 (Passenger List) must be tracked per port call.
+- Dangerous goods on board must be declared before the vessel enters port waters.
+- Customs clearance must be approved before cargo operations can commence.
+- If dangerous goods are declared but the declaration is not submitted, the vessel cannot proceed to In Port status.
+- Submitting the 24-hour notice when the 96-hour notice is still pending triggers a workflow warning.
+- Port call status transitions: Pre-Arrival → In Port → Completed.
+- A port call created without an agent contact is flagged as incomplete.
+
+Regulations: FAL Convention, ISPS Code, SOLAS Chapter XI-2, EU Directive 2002/59/EC.
+Safety classification: HIGH — missing pre-arrival notifications can result in port denial and regulatory fines.

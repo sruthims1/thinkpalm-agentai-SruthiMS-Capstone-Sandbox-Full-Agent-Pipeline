@@ -1,0 +1,21 @@
+Feature: Incident and Near-Miss Reporting
+
+The system provides a multi-role incident reporting and review workflow compliant with the ISM Code.
+
+Core Requirements:
+- Any authenticated crew member can submit an incident or near-miss report.
+- A report must include: incident type (Near Miss/Incident/Accident), severity (Low/Medium/High), vessel, location on vessel, and a detailed description.
+- Upon submission, the system auto-generates a unique incident ID in the format INC-YYYY-NNN.
+- The incident status is set to Pending Review and a 24-hour review deadline is assigned.
+- An officer must review the incident by providing review comments, root cause classification, and an authority notification decision.
+- Upon officer review, status updates to Approved.
+- High severity incidents must be reported to the maritime authority within 24 hours of occurrence.
+- If a High severity incident is not notified to the authority within 24 hours, the system flags it as overdue.
+- An OVERDUE REVIEW banner is displayed for any incident where status is Pending Review and the deadline has passed.
+- The system must display: total incidents, high severity count, pending review count, and closed count.
+- Accident reports require superintendent approval before closure.
+- A minimum of 12 months of incident records must be retained.
+- The authority notification checkbox must be pre-selected for High severity incidents during review.
+
+Regulations: ISM Code (Resolution A.741(18)), SOLAS Chapter IX, Flag State Reporting Requirements.
+Safety classification: CRITICAL — unreported incidents lead to repeat accidents and ISM non-conformances.

@@ -1,0 +1,22 @@
+Feature: Crew Fatigue and Rest Hours Management
+
+The system monitors officer and crew rest hours in compliance with MLC 2006 and STCW requirements to prevent fatigue-related maritime accidents.
+
+Core Requirements:
+- The system maintains a rest hours register tracking each officer's rest in the last 24 hours and last 7 days.
+- Minimum rest requirement: 10 hours in any 24-hour period.
+- Minimum rest requirement: 77 hours in any 7-day period.
+- Rest periods may be divided into no more than 2 periods, one of which must be at least 6 hours.
+- Rest periods spanning midnight must be counted as a single continuous period.
+- Any violation of minimum rest requirements must immediately flag the officer as non-compliant.
+- A fatigue violation banner is displayed prominently for each non-compliant officer.
+- When a violation is detected, a Watch Reassignment action becomes available for the affected officer.
+- Triggering watch reassignment logs a reassignment event and notifies the Chief Officer.
+- Users can log a rest period by entering officer name, rest start datetime, and rest end datetime.
+- Rest end time must be validated to be after rest start time.
+- Emergency or distress situations may override rest rules only with Master's written authorisation, and the override must be logged.
+- Port State Control inspectors may request 3 months of rest hour records.
+- PSC audit risk level (Low/Medium/High) is displayed based on active violation count.
+
+Regulations: MLC 2006 Regulation 2.3, STCW Chapter VIII, ILO Convention 180.
+Safety classification: CRITICAL — crew fatigue is a leading cause of maritime accidents and collisions.

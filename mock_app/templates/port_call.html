@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}Port Call Management{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h3 class="mb-1"><i class="bi bi-anchor me-2"></i>Port Call Management</h3>
+  <p class="mb-0 opacity-75">Pre-arrival notifications, customs clearance, berth coordination</p>
+</div>
+
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center bg-primary text-white">
+    <span><i class="bi bi-list-ul me-2"></i>Active Port Calls</span>
+    <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#newPortCallModal">
+      <i class="bi bi-plus-circle me-1"></i>New Port Call
+    </button>
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Vessel</th><th>Port</th><th>ETA</th><th>ETD</th><th>96h Notice</th><th>24h Notice</th><th>Customs</th><th>Status</th><th>Action</th></tr>
+      </thead>
+      <tbody>
+        {% for pc in port_calls %}
+        <tr>
+          <td><strong>{{ pc.vessel }}</strong></td>
+          <td>{{ pc.port }}, {{ pc.country }}</td>
+          <td>{{ pc.eta }}</td>
+          <td>{{ pc.etd }}</td>
+          <td>
+            {% if pc.pre_arrival_96h == 'submitted' %}
+              <span class="badge bg-success"><i class="bi bi-check me-1"></i>Submitted</span>
+            {% else %}
+              <span class="badge bg-danger" id="notice-96h-{{ pc.id }}">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pc.pre_arrival_24h == 'submitted' %}
+              <span class="badge bg-success"><i class="bi bi-check me-1"></i>Submitted</span>
+            {% else %}
+              <span class="badge bg-warning text-dark" id="notice-24h-{{ pc.id }}">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pc.customs_clearance == 'approved' %}
+              <span class="badge bg-success">Approved</span>
+            {% elif pc.customs_clearance == 'pending' %}
+              <span class="badge bg-warning text-dark" id="customs-{{ pc.id }}">Pending</span>
+            {% else %}
+              <span class="badge bg-secondary">N/A</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if pc.status == 'in_port' %}
+              <span class="badge bg-success">In Port</span>
+            {% elif pc.status == 'pre_arrival' %}
+              <span class="badge bg-warning text-dark">Pre-Arrival</span>
+            {% else %}
+              <span class="badge bg-secondary">Completed</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="viewPortCall({{ pc.id }})">
+              <i class="bi bi-eye me-1"></i>Details
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Port Call Details Panel -->
+<div class="card" id="portCallDetails" style="display:none;">
+  <div class="card-header bg-secondary text-white"><i class="bi bi-info-circle me-2"></i>Port Call Checklist</div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <h6>Pre-Arrival Documents</h6>
+        <ul class="list-group">
+          <li class="list-group-item d-flex justify-content-between">
+            FAL Form 1 (General Declaration)
+            <span class="badge bg-success" id="fal1-status">Submitted</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            FAL Form 5 (Crew List)
+            <span class="badge bg-success" id="fal5-status">Submitted</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            FAL Form 6 (Passenger List)
+            <span class="badge bg-secondary">N/A</span>
+          </li>
+          <li class="list-group-item d-flex justify-content-between">
+            Dangerous Goods Declaration
+            <span class="badge bg-warning text-dark" id="dg-status">Pending</span>
+          </li>
+        </ul>
+      </div>
+      <div class="col-md-6">
+        <h6>Submit 24h Pre-Arrival Notice</h6>
+        <form method="POST" action="/port-call/submit-notice" id="noticeForm">
+          <input type="hidden" name="port_call_id" value="1"/>
+          <div class="mb-3">
+            <label class="form-label">Agent Name</label>
+            <input type="text" class="form-control" name="agent_name" value="Boskalis Maritime Services"/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Expected Cargo (MT)</label>
+            <input type="number" class="form-control" name="cargo_mt" placeholder="e.g. 45000" required/>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Last Port of Call</label>
+            <input type="text" class="form-control" name="last_port" placeholder="e.g. Port of Houston"/>
+          </div>
+          <button type="submit" class="btn btn-primary" id="submitNoticeBtn">
+            <i class="bi bi-send me-1"></i>Submit 24h Notice
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- New Port Call Modal -->
+<div class="modal fade" id="newPortCallModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>New Port Call</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/port-call/new">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Vessel</label>
+              <select class="form-select" name="vessel" required>
+                <option>MV Oceanic Pioneer</option>
+                <option>MV Star Nour</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Port of Call</label>
+              <input type="text" class="form-control" name="port" placeholder="e.g. Port of Singapore" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">ETA</label>
+              <input type="datetime-local" class="form-control" name="eta" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">ETD</label>
+              <input type="datetime-local" class="form-control" name="etd" required/>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Dangerous Goods on Board?</label>
+              <select class="form-select" name="dangerous_goods">
+                <option value="none">No</option>
+                <option value="declared">Yes — Will Declare</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Port Agent</label>
+              <input type="text" class="form-control" name="agent" placeholder="Agent company name"/>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="createPortCallBtn">Create Port Call</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% block scripts %}
+<script>
+function viewPortCall(id) {
+  document.getElementById('portCallDetails').style.display = 'block';
+  document.getElementById('portCallDetails').scrollIntoView({behavior: 'smooth'});
+}
+</script>
+{% endblock %}
+{% endblock %}
