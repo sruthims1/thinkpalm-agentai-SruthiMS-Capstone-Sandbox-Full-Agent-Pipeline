@@ -94,17 +94,6 @@ flowchart TD
 
 ---
 
-## Evaluation Rubric — Self-Assessment
-
-| Criterion | Max | Implementation Evidence |
-|---|---|---|
-| **End-to-End Pipeline** | 20 | 4 named agents, LangGraph `StateGraph`, SQLite checkpoint + ChromaDB LTM, 3 custom tools (gherkin_validator · coverage_calculator · file_tools), STM written after every agent node |
-| **Code Quality** | 20 | `src/agents/` · `src/tools/` · `src/memory/` · `src/api/` · `src/pipeline/` · `src/services/` · `frontend/` — fully modular; type hints throughout; logging on every agent; no dead code |
-| **UI / CLI** | 20 | FastAPI + SSE streaming → React 18/Vite/TypeScript live sidebar; 5-tab output panel; QMetry CSV export; `cli.py` with Rich table output; see `screenshots/` |
-| **Track Alignment** | 20 | SOLAS/STCW/MLC/ISM/MARPOL/FAL/ISPS focus; PSC detention triggers; Two-Deadline + Block-Override-Audit patterns; ChromaDB KB with exact regulatory thresholds; mock app targets real maritime fleet management workflows |
-| **README & Documentation** | 20 | Mermaid architecture · full setup · agent descriptions · tool descriptions · memory architecture · sample input/output · API reference · observations |
-
----
 
 ## Project Structure
 
