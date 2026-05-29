@@ -1,6 +1,15 @@
-# MaritimeTestAI
+# MarineQA Pilot
 
-**AI-Powered Maritime Test Automation Assistant** — ThinkPalm Technologies · Agentic AI Batch 2
+| | |
+|---|---|
+| **Author** | Sruthi M S |
+| **Track** | QA/Testing |
+| **Lab** | Capstone Sandbox — Full Agent Pipeline |
+| **Batch** | Agentic AI Batch 2 · ThinkPalm Technologies |
+
+---
+
+**AI-Powered Maritime Test Automation Assistant**
 
 > Reads a maritime feature description, performs IMO/SOLAS/STCW/MLC/MARPOL regulatory risk analysis, generates BDD Gherkin scenarios, produces runnable TypeScript Playwright test scripts against a live mock maritime app, and delivers a QA audit report with a requirements traceability matrix — all through a 4-agent LangGraph pipeline with persistent memory.
 
@@ -485,6 +494,26 @@ All tools are registered in `src/tools/tool_registry.py` with full JSON Schema d
 
 ---
 
+## Tools Used
+
+| Category | Tool / Library | Purpose |
+|---|---|---|
+| **AI Orchestration** | LangGraph `StateGraph` | 4-agent pipeline with MemorySaver checkpointing |
+| **LLM** | Groq `llama-3.1-8b-instant` | Primary inference (131K TPM, 45s timeout) |
+| **LLM Fallback** | OpenRouter (meta-llama → gemma → deepseek) | Rate-limit and payload fallback chain |
+| **Vector Store** | ChromaDB | Maritime regulation KB + long-term memory |
+| **Session Store** | SQLite | LangGraph checkpoints + cross-session history |
+| **Backend API** | FastAPI + Uvicorn | REST endpoints + SSE streaming |
+| **Frontend** | React 18 + Vite + TypeScript | Real-time pipeline UI with 5-tab output panel |
+| **Test Generation** | Playwright (Python) | DOM scraping of mock app for live locators |
+| **Test Output** | Playwright (TypeScript / `@playwright/test`) | Generated `.spec.ts` test scripts |
+| **Mock App** | Flask + Jinja2 | Maritime fleet management app (5 pages) |
+| **JIRA Integration** | JIRA Cloud REST API v3 | Fetch feature descriptions from JIRA issues |
+| **CLI** | Python + Rich | Terminal runner with formatted table output |
+| **BDD** | Gherkin (custom parser) | Scenario generation and structural validation |
+
+---
+
 ## Observations
 
 ### What Worked Well
@@ -545,4 +574,4 @@ See the `screenshots/` folder. Captured screens:
 
 ---
 
-*MaritimeTestAI — ThinkPalm Technologies · Agentic AI Batch 2*
+*MarineQA Pilot — ThinkPalm Technologies · Agentic AI Batch 2*
