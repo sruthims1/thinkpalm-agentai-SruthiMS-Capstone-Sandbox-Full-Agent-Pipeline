@@ -23,6 +23,21 @@ _TOOL_INSTRUCTIONS = (
     "Once validation passes, return the final Gherkin text in your response."
 )
 
+# Compact system prompt for the tool-calling path — intentionally short to stay
+# under Groq's payload limit when feature descriptions are long (e.g. from JIRA).
+# The full SYSTEM_PROMPT (with mock app UI detail) is used in the fallback path.
+_TOOL_SYSTEM_PROMPT = (
+    "You are a BDD test analyst for maritime safety-critical software. "
+    "Generate a Gherkin feature file with 8-12 scenarios. "
+    "Rules: P1 safety-critical first. Use Scenario Outline for boundary values. "
+    "Tags: @p1-safety-critical|@p2-compliance|@p3-operational "
+    "+ @stcw|@mlc|@ism|@marpol|@solas|@fal "
+    "+ @happy-path|@boundary|@negative|@edge-case. "
+    "NO login steps. Apply Two-Deadline Pattern (T-30, T-0, T+1). "
+    "Return Gherkin feature file text only — no markdown fences."
+    + _TOOL_INSTRUCTIONS
+)
+
 log = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = """You are a BDD test analyst for maritime safety-critical software.
@@ -93,7 +108,7 @@ Generate 8-12 scenarios. P1 safety-critical scenarios first."""
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
                 future = ex.submit(
                     llm.complete_with_tools,
-                    SYSTEM_PROMPT + _TOOL_INSTRUCTIONS,
+                    _TOOL_SYSTEM_PROMPT,   # compact prompt — avoids 413 on long inputs
                     user_msg,
                     [_VALIDATE_SCHEMA],
                     2000,

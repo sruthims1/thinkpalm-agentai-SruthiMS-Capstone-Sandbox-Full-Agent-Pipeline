@@ -97,6 +97,15 @@ class LLMService:
         ]
 
         for _round in range(3):
+            # Guard against 413 Payload Too Large — truncate system message if needed.
+            # Groq's safe threshold is ~24,000 chars of serialised JSON payload.
+            payload_estimate = len(json.dumps({"messages": messages, "tools": groq_tools}))
+            if payload_estimate > 24_000 and messages and messages[0]["role"] == "system":
+                overage   = payload_estimate - 24_000
+                sys_content = messages[0]["content"] or ""
+                messages[0]["content"] = sys_content[:max(500, len(sys_content) - overage)]
+                log.warning(f"[LLMService] Payload {payload_estimate} chars — truncated system to avoid 413")
+
             r = requests.post(
                 GROQ_URL,
                 headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},

@@ -36,7 +36,7 @@ flowchart TD
 
     subgraph LG["LangGraph StateGraph — MemorySaver Checkpointer"]
         A1["🔍 Agent 1: MaritimeDomainAgent\nGroq llama-3.1-8b-instant\nRisk · Regs · PSC Triggers · KB Query"]
-        A2["📝 Agent 2: TestStrategistAgent\nGroq llama-3.1-8b-instant\nGherkin BDD · 8-12 scenarios · Review Loop"]
+        A2["📝 Agent 2: TestStrategistAgent\nGroq llama-3.1-8b-instant\nGherkin BDD · LLM tool-calling loop\nvalidate_gherkin → self-correct"]
         A3["🎭 Agent 3: AutomationEngineerAgent\nPlaywright DOM scraper + LLM\nLive HTML locators → TypeScript Playwright spec"]
         A4["🔬 Agent 4: QAAuditorAgent\nGroq llama-3.1-8b-instant\nTraceability Matrix · Audit Score /100"]
         A1 --> A2 --> A3 --> A4
@@ -77,13 +77,15 @@ flowchart TD
     LG -->|SSE node events| SSE
     SSE -->|real-time logs| OUT_TAB
 
-    A1 --> CHROMA
-    A1 --> STM
-    A2 --> STM
+    A1 -->|reads KB + LTM| CHROMA
+    A1 -->|writes domain_analysis| STM
+    A2 -->|LLM calls validate_gherkin| TOOLS
+    A3 -->|reads as fallback| STM
     A3 --> TOOLS
-    A3 --> STM
-    A4 --> SQLITE
-    A4 --> CHROMA
+    A4 -->|reads as fallback| STM
+    REST -->|writes after each agent| STM
+    REST -->|persists session| SQLITE
+    REST -->|persists LTM| CHROMA
     LG --> OUT
 
     MOCK -->|Playwright DOM scraping → live locators| A3
@@ -519,7 +521,10 @@ All tools are registered in `src/tools/tool_registry.py` with full JSON Schema d
 
 ### What Worked Well
 
-**1. Knowledge Base grounding eliminates hallucinated thresholds.**
+**1. LLM-driven tool-calling loop improves Gherkin quality without hard-coded logic.**
+Agent 2 uses Groq's function-calling API (`complete_with_tools()`) to give the LLM a `validate_gherkin` tool. The LLM generates Gherkin, calls the tool, inspects the structural quality metrics (scenario count, safety tag count), and self-corrects within the same agentic loop — up to 3 rounds. This removed the need for a separate hard-coded review pass and makes the quality gate genuinely agent-driven. A compact system prompt variant (`_TOOL_SYSTEM_PROMPT`) is used for this path to stay within Groq's payload limit on long inputs (e.g. JIRA descriptions); the full detailed prompt is preserved for the fallback path.
+
+**2. Knowledge Base grounding eliminates hallucinated thresholds.**
 The biggest practical gain from wiring ChromaDB KB into Agent 1 was that boundary values became accurate. Before KB integration, the LLM would produce generic thresholds like "certificates must be renewed periodically." After integration, output contained exact values: "CoC validity 5 years, BST 5 years, Medical 2 years, 30-day renewal window, min 10h rest per 24h (STCW A-VIII/1)." This directly improves the quality of Scenario Outline `Examples:` tables.
 
 **2. Live DOM scraping grounds LLM locator generation in reality.**
