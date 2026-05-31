@@ -9,6 +9,7 @@ import json, logging, concurrent.futures
 from typing import Callable
 
 from services.llm_service import llm
+from memory.short_term import session_memory
 
 log = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class MaritimeDomainAgent:
     def __init__(self, log_callback: Callable[[str], None] | None = None) -> None:
         self._log = log_callback or log.info
         self._kb  = self._load_kb()
+        self._ltm = self._load_ltm()
 
     @staticmethod
     def _load_kb():
@@ -46,6 +48,15 @@ class MaritimeDomainAgent:
             return MaritimeKnowledgeBase()
         except Exception as exc:
             log.warning(f"KB unavailable: {exc}")
+            return None
+
+    @staticmethod
+    def _load_ltm():
+        try:
+            from memory.long_term import LongTermMemory
+            return LongTermMemory()
+        except Exception as exc:
+            log.warning(f"LTM unavailable: {exc}")
             return None
 
     def _query_kb(self, feature_name: str, feature_description: str) -> str:
@@ -72,9 +83,13 @@ class MaritimeDomainAgent:
     def analyze(self, feature_name: str, feature_description: str) -> dict:
         self._log(f"[{self.name}] Analyzing: {feature_name}")
 
-        kb_context = self._query_kb(feature_name, feature_description)
+        kb_context  = self._query_kb(feature_name, feature_description)
+        ltm_context = self._query_ltm(feature_name, feature_description)
+
         if kb_context:
-            self._log(f"[{self.name}] KB enrichment: {kb_context.count('[')  } regulation(s) retrieved")
+            self._log(f"[{self.name}] KB enrichment: {kb_context.count('[')} regulation(s) retrieved")
+        if ltm_context:
+            self._log(f"[{self.name}] LTM enrichment: prior analysis found for similar feature")
 
         user_msg = f"""Analyze this maritime software feature for safety and compliance risks:
 
@@ -84,6 +99,8 @@ Description:
 {feature_description[:1200]}
 
 {kb_context}
+
+{ltm_context}
 
 Return a JSON risk assessment using the exact thresholds from the KB context above."""
 
@@ -105,7 +122,47 @@ Return a JSON risk assessment using the exact thresholds from the KB context abo
             f"regs: {len(result.get('applicable_regulations', []))}, "
             f"P1: {len(result.get('p1_safety_requirements', []))}"
         )
+        session_memory.set("domain_analysis", result)
         return result
+
+    def _query_ltm(self, feature_name: str, feature_description: str) -> str:
+        """Search long-term memory for prior analyses of similar features."""
+        if not self._ltm:
+            return ""
+        try:
+            if self._ltm.get_stats()["total_analyses"] == 0:
+                return ""
+            query  = f"{feature_name} {feature_description[:200]}"
+            prior  = self._ltm.search_similar_analyses(query, n_results=2)
+            if not prior:
+                return ""
+            lines = ["=== Long-Term Memory — Prior Analyses (use as supporting context only) ==="]
+            for p in prior:
+                meta = p.get("metadata", {})
+                fn   = meta.get("feature_name", "")
+                if fn.lower() == feature_name.lower():
+                    continue
+                sim = p.get("similarity", 0) or 0
+                if sim < 0.5:
+                    continue
+                risk = meta.get("risk_level", "")
+                analysis_json = meta.get("analysis_json", "{}")
+                try:
+                    import json as _j
+                    pa   = _j.loads(analysis_json)
+                    regs = pa.get("applicable_regulations", [])[:3]
+                    p1s  = pa.get("p1_safety_requirements", [])[:2]
+                    lines.append(f"[Prior: {fn} | Risk: {risk} | Similarity: {sim:.2f}]")
+                    if regs:
+                        lines.append(f"  Regulations: {', '.join(regs)}")
+                    if p1s:
+                        lines.append(f"  P1 requirements: {'; '.join(p1s)}")
+                except Exception:
+                    lines.append(f"[Prior: {fn} | Risk: {risk}]")
+            return "\n".join(lines) if len(lines) > 1 else ""
+        except Exception as exc:
+            log.warning(f"[{self.name}] LTM query failed: {exc}")
+            return ""
 
     # ── Helpers ─────────────────────────────────────────────────────────────────
     @staticmethod

@@ -1,6 +1,6 @@
 # Screenshots
 
-Screenshots of the MaritimeTestAI system in operation.
+Screenshots of the MarineQA Pilot system in operation.
 
 | File | What it shows |
 |---|---|

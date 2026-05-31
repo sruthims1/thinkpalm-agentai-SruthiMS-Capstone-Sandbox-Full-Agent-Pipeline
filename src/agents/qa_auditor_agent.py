@@ -11,6 +11,7 @@ from typing import Callable
 
 from services.llm_service import llm
 from tools.tool_registry import dispatch
+from memory.short_term import session_memory
 
 log = logging.getLogger(__name__)
 
@@ -65,6 +66,13 @@ class QAAuditorAgent:
         playwright_result: dict,
     ) -> dict:
         self._log(f"[{self.name}] Auditing: {feature_name}")
+        # Enrich from short-term memory if LangGraph state is sparse
+        if not domain_analysis:
+            domain_analysis = session_memory.get("domain_analysis") or {}
+        if not gherkin_result:
+            gherkin_result = session_memory.get("gherkin_output") or {}
+        if not playwright_result:
+            playwright_result = session_memory.get("playwright_scripts") or {}
 
         p1_reqs   = domain_analysis.get("p1_safety_requirements", [])
         p2_reqs   = domain_analysis.get("p2_compliance_requirements", [])

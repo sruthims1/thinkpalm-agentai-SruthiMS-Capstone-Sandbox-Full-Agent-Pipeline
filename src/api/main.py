@@ -19,7 +19,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from pipeline.langgraph_pipeline import run_pipeline_stream_sync
-from memory.short_term   import ShortTermMemory
+from memory.short_term   import session_memory
 from memory.long_term    import LongTermMemory
 from memory.maritime_kb  import MaritimeKnowledgeBase
 from memory.sqlite_memory import session_store
@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_stm        = ShortTermMemory()
+_stm        = session_memory
 _ltm        = LongTermMemory()
 _kb         = MaritimeKnowledgeBase()
 _log_queues: dict[str, queue.Queue] = {}

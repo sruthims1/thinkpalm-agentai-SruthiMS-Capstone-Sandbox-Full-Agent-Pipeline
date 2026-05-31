@@ -277,11 +277,15 @@ The `/api/jira/fetch?issue_key=SHIP-42` endpoint returns `feature_name` (from su
 # Ensure mock app is running
 python mock_app/app.py
 
-# Install Playwright browsers (first time only)
-cd outputs/typescript && npm init playwright@latest
+# Install dependencies (first time only — package.json already present in outputs/typescript/)
+cd outputs/typescript && npm install
+npx playwright install chromium
 
 # Run a generated spec
-npx playwright test crew_certification.spec.ts --headed
+npx playwright test voyage_planning.spec.ts --headed
+
+# Run all generated specs
+npx playwright test
 
 # View HTML report
 npx playwright show-report
@@ -389,22 +393,27 @@ test.describe('Crew Certification Management', () => {
 
 - **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 45s hard timeout)
 - **Knowledge Base:** Queries ChromaDB for the top-4 most relevant IMO regulation chunks before LLM analysis — ensures exact regulatory thresholds (e.g. "min 10h rest per 24h") appear in output, not hallucinated approximations
+- **Long-Term Memory Read:** Before calling the LLM, searches ChromaDB long-term memory for prior analyses of similar features (similarity ≥ 0.5). If found, injects prior risk levels and P1 requirements as supporting context — enabling cross-feature learning across pipeline runs
+- **Short-Term Memory Write:** Writes completed `domain_analysis` to the shared `session_memory` singleton so Agents 3 and 4 can read it as a fallback if LangGraph state is sparse
 - **Output:** `risk_level` (HIGH/MEDIUM/LOW), `applicable_regulations`, P1/P2/P3 requirements, `boundary_values` (exact thresholds), `psc_detention_triggers`, `mandatory_edge_cases`
 - **Fallback:** Keyword-based heuristic if LLM call times out
 
 ### Agent 2 — TestStrategistAgent
-**Role:** BDD test scenario generator applying maritime-specific test patterns.
+**Role:** BDD test scenario generator applying maritime-specific test patterns with LLM-driven tool calling.
 
-- **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 45s hard timeout)
+- **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 90s timeout for tool-calling loop)
+- **Tool-Calling Loop:** Uses `llm.complete_with_tools()` — the LLM is given the `validate_gherkin` tool schema and decides when to invoke it. After generating Gherkin, the LLM calls `validate_gherkin`, receives structural quality metrics (scenario count, safety tag count), and self-corrects if thresholds are not met — all within a single agentic loop (up to 3 rounds)
 - **Patterns:** Two-Deadline (T-30/T-7/T-0/T+1), Block-Override-Audit (banner → action → flash confirm), no-auth scenario design (mock app has no login)
-- **Review Loop:** If initial output has fewer than 6 scenarios or fewer than 2 safety-tagged scenarios, automatically re-calls LLM with feedback; adds max 45s overhead
-- **Tools called:** `validate_gherkin` (structural check), `write_test_file` (saves `.feature`)
+- **Safety Net:** If tool-calling fails (e.g. 413 payload too large), falls back to plain `complete_gen()` then to template generation — pipeline never halts
+- **Tools called (LLM-driven):** `validate_gherkin` — LLM decides to call this; result fed back into LLM context for self-correction
+- **Tools called (programmatic):** `write_test_file` (saves `.feature` to `outputs/gherkin/`)
 - **Output:** 8–12 scenarios tagged with risk priority + regulation + test type
 
 ### Agent 3 — AutomationEngineerAgent
 **Role:** Production TypeScript Playwright test generator with live DOM awareness.
 
 - **Model:** `llama-3.1-8b-instant` via Groq — **LLM guided by live-scraped DOM locators**
+- **Short-Term Memory Read:** Reads `domain_analysis` and `gherkin_output` from `session_memory` as a fallback enrichment if LangGraph state is sparse (e.g. partial pipeline resume)
 - **Primary path (mock app running):**
   1. Launches headless Chromium via `mock_app_scraper.py` (Playwright Python)
   2. Navigates to the relevant page and extracts all element IDs, form field names, button texts, modal IDs, badge classes, and table selectors via `page.evaluate()`
@@ -413,12 +422,13 @@ test.describe('Crew Certification Management', () => {
   5. Post-processes the output to fix systematic LLM CSS mistakes (`.badge .bg-warning` → `.badge.bg-warning`, `toHaveText` → `toContainText` on banner elements)
 - **Fallback path (mock app offline or LLM fails):** Deterministic Python AST generator using `_map_step()` keyword router with hardcoded locators merged with any scraped data available
 - **Slug detection:** Identifies target page from feature name + Gherkin content
-- **Tools called:** `calculate_coverage` (requirement mapping), `write_test_file` (saves `.spec.ts` + `playwright.config.ts`)
+- **Tools called:** `calculate_coverage` (requirement mapping), `write_test_file` (saves `.spec.ts` + `playwright.config.ts` to `outputs/typescript/`)
 
 ### Agent 4 — QAAuditorAgent
 **Role:** Requirements traceability, coverage gap analysis, audit scoring.
 
 - **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 45s hard timeout)
+- **Short-Term Memory Read:** Reads `domain_analysis`, `gherkin_output`, and `playwright_scripts` from `session_memory` as a fallback if LangGraph state is sparse
 - **Output:** Traceability matrix (P1/P2 requirement → scenario → coverage status), `p1_coverage_pct`, `p2_coverage_pct`, `overall_score` (0–100), ranked gap recommendations
 - **Fallback:** Deterministic Python scorer if LLM call times out
 
@@ -426,28 +436,30 @@ test.describe('Crew Certification Management', () => {
 
 ## Tool Details
 
-All tools are registered in `src/tools/tool_registry.py` with full JSON Schema definitions.
+All tools are registered in `src/tools/tool_registry.py` with full JSON Schema definitions compatible with the Groq/OpenAI function-calling API. Agent 2 invokes `validate_gherkin` via the LLM tool-calling loop (`complete_with_tools()`); all other tool calls are programmatic.
 
-| Tool | Called By | What It Does |
-|---|---|---|
-| `gherkin_validator` | Agent 2 | Parses Gherkin text; validates Feature/Scenario/Given/When/Then structure; returns scenario count, safety tag count, warnings |
-| `coverage_calculator` | Agent 3 | Maps each P1/P2 requirement against scenario titles using keyword matching; returns covered/partial/uncovered + critical gaps |
-| `write_test_file` | Agents 2, 3, 4 | Writes `.feature`, `.spec.ts`, `playwright.config.ts`, `_coverage_report.json`, `_audit_report.json` to `outputs/` |
-| `read_feature_file` | CLI, API | Reads sample feature `.txt` files from `sample_features/` |
-| `list_feature_files` | API | Returns list of available sample feature files |
-| `list_generated_tests` | API | Returns list of previously generated test artefacts |
+| Tool | Invocation | Called By | What It Does |
+|---|---|---|---|
+| `validate_gherkin` | **LLM-driven** (Agent 2 tool-calling loop) | Agent 2 | Parses Gherkin text; validates Feature/Scenario/Given/When/Then structure; returns scenario count, safety tag count, warnings — LLM reads result and self-corrects |
+| `coverage_calculator` | Programmatic | Agent 3 | Maps each P1/P2 requirement against scenario titles using keyword matching; returns covered/partial/uncovered + critical gaps |
+| `write_test_file` | Programmatic | Agents 2, 3, 4 | Writes `.feature`, `.spec.ts`, `playwright.config.ts`, `_coverage_report.json`, `_audit_report.json` to `outputs/` |
+| `read_feature_file` | Programmatic | CLI, API | Reads sample feature `.txt` files from `sample_features/` |
+| `list_feature_files` | Programmatic | API | Returns list of available sample feature files |
+| `list_generated_tests` | Programmatic | API | Returns list of previously generated test artefacts |
 
 ---
 
 ## Memory Architecture
 
-| Store | Technology | Scope | Contents |
-|---|---|---|---|
-| **Short-Term Memory** | In-memory dict (`short_term.py`) | Single run | Feature name, domain analysis, Gherkin output, Playwright scripts, coverage report — cleared at start of each run |
-| **LangGraph Checkpoints** | SQLite `memory/checkpoints.db` | Cross-run | Pipeline execution state — enables `--session-id` resume in CLI |
-| **Session History** | SQLite `memory/sessions.db` | Cross-session | Full pipeline results for the Memory tab history view |
-| **Knowledge Base** | ChromaDB `memory/chroma_db/` | Persistent | 16 IMO maritime regulation chunks (SOLAS, STCW, MLC, ISM, MARPOL, FAL, ISPS, BMP5) — queried by Agent 1 via semantic similarity |
-| **Long-Term Memory** | ChromaDB `memory/chroma_db/` | Persistent | Past domain analyses and test case snapshots — visible in Memory tab |
+| Store | Technology | Scope | Read by | Write by | Contents |
+|---|---|---|---|---|---|
+| **Short-Term Memory** | In-memory singleton (`session_memory` in `short_term.py`) | Single run | Agents 3, 4 (fallback enrichment) | API layer + Agent 1 | Feature name, domain analysis, Gherkin output, Playwright scripts, coverage report — cleared at start of each run |
+| **LangGraph Checkpoints** | SQLite `memory/checkpoints.db` | Cross-run | LangGraph pipeline | LangGraph pipeline | Pipeline execution state — enables `--session-id` resume in CLI |
+| **Session History** | SQLite `memory/sessions.db` | Cross-session | Memory tab, `/api/sessions` | API layer (end of run) | Full pipeline results for the Memory tab history view |
+| **Knowledge Base** | ChromaDB `memory/chroma_db/` | Persistent | Agent 1 (top-4 semantic results per run) | Seed on startup | 16 IMO maritime regulation chunks (SOLAS, STCW, MLC, ISM, MARPOL, FAL, ISPS, BMP5) |
+| **Long-Term Memory** | ChromaDB `memory/chroma_db/` | Persistent | Agent 1 (prior similar analyses, similarity ≥ 0.5) | API layer (end of run) | Past domain analyses, Gherkin snapshots, coverage reports — cross-feature learning |
+
+> **How memory flows through the pipeline:** Agent 1 reads KB + LTM → enriches its prompt → writes result to STM. Agents 3 and 4 read STM as a fallback. The API layer writes LTM and session history after each completed run.
 
 ---
 

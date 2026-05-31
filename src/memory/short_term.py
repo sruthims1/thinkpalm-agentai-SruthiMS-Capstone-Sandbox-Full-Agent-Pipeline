@@ -64,3 +64,8 @@ class ShortTermMemory:
         keys = ["feature_text", "feature_name", "domain_analysis",
                 "gherkin_output", "playwright_scripts", "coverage_report"]
         return {k: self._store[k] for k in keys if k in self._store}
+
+
+# Module-level singleton shared across the API layer and all agents.
+# Import with: from memory.short_term import session_memory
+session_memory = ShortTermMemory()

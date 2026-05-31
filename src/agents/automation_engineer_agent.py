@@ -16,6 +16,7 @@ from typing import Callable
 
 from services.llm_service       import llm
 from services.mock_app_scraper  import MockAppScraper
+from memory.short_term          import session_memory
 from tools.gherkin_validator    import validate_gherkin
 from tools.coverage_calculator  import calculate_coverage
 from tools.tool_registry        import dispatch
@@ -162,6 +163,11 @@ class AutomationEngineerAgent:
         domain_analysis: dict,
     ) -> dict:
         self._log(f"[{self.name}] Generating Playwright tests for: {feature_name}")
+        # Enrich from short-term memory if LangGraph state is sparse
+        if not domain_analysis:
+            domain_analysis = session_memory.get("domain_analysis") or {}
+        if not gherkin_result:
+            gherkin_result = session_memory.get("gherkin_output") or {}
 
         gherkin_text    = gherkin_result.get("gherkin_text", "")
         scenario_titles = gherkin_result.get("scenario_titles", [])

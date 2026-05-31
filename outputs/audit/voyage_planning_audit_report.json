@@ -3,118 +3,82 @@
     {
       "req_id": "R1",
       "requirement": "Voyage plan must cover entire voyage from berth to berth",
-      "scenario": "P1 Safety Critical - Voyage plan covers entire voyage",
-      "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
+      "scenario": null,
+      "status": "gap",
+      "regulation": "P1-SAFETY"
     },
     {
       "req_id": "R2",
       "requirement": "Bunker margin < 5% on arrival (propulsion failure risk)",
-      "scenario": "P1 Safety Critical - Bunker margin < 5% on arrival",
+      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
       "status": "covered",
-      "regulation": "SOLAS Chapter II-1 Regulation 26"
+      "regulation": "P1-SAFETY"
     },
     {
-      "req_id": "R3",
+      "req_id": "C1",
       "requirement": "Bunker margin 5-15% on arrival (remedial action recommended)",
-      "scenario": null,
-      "status": "gap",
-      "regulation": "SOLAS Chapter II-1 Regulation 26"
+      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
+      "status": "covered",
+      "regulation": "P2-COMPLIANCE"
     },
     {
-      "req_id": "R4",
+      "req_id": "C2",
       "requirement": "24-hour pre-arrival notice for EU ports",
-      "scenario": "Boundary - 24h pre-arrival notice for EU ports",
+      "scenario": "Validate EU port pre-arrival notice deadlines",
       "status": "covered",
-      "regulation": "EU Directive 2002/59/EC"
+      "regulation": "P2-COMPLIANCE"
     },
     {
-      "req_id": "R5",
+      "req_id": "C3",
       "requirement": "FAL Form 1 (General Declaration) required for all vessel arrivals",
-      "scenario": "P1 Safety Critical - Missing FAL Form 1 for vessel arrival",
-      "status": "covered",
-      "regulation": "FAL Convention"
+      "scenario": null,
+      "status": "partial",
+      "regulation": "P2-COMPLIANCE"
     },
     {
-      "req_id": "R6",
+      "req_id": "O1",
       "requirement": "Route deviation must update ETA and be logged",
+      "scenario": "Confirm route deviation to prevent PSC detention",
+      "status": "covered",
+      "regulation": "P3-OPERATIONAL"
+    },
+    {
+      "req_id": "O2",
+      "requirement": "Weather deviation must be confirmed by Master",
       "scenario": null,
       "status": "gap",
-      "regulation": "SOLAS Chapter V, Regulation 34"
+      "regulation": "P3-OPERATIONAL"
     },
     {
-      "req_id": "R7",
-      "requirement": "Weather deviation must be confirmed by Master",
-      "scenario": "P1 Safety Critical - Weather deviation not confirmed by Master",
+      "req_id": "O3",
+      "requirement": "Bunker consumption calculation for voyage planning",
+      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
       "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
-    },
-    {
-      "req_id": "R8",
-      "requirement": "Voyage without waypoints (incomplete passage plan)",
-      "scenario": "P1 Safety Critical - Voyage without waypoints (incomplete passage plan)",
-      "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
-    },
-    {
-      "req_id": "R9",
-      "requirement": "Bunker margin exactly at threshold",
-      "scenario": "Boundary - Bunker margin exactly at threshold",
-      "status": "covered",
-      "regulation": "SOLAS Chapter II-1 Regulation 26"
-    },
-    {
-      "req_id": "R10",
-      "requirement": "96h notice for VLCC and passenger vessels",
-      "scenario": "Boundary - 96h notice for VLCC and passenger vessels",
-      "status": "covered",
-      "regulation": "EU Directive 2002/59/EC"
-    },
-    {
-      "req_id": "R11",
-      "requirement": "Departure-block banner visible",
-      "scenario": "Block-Override-Audit - Departure-block banner visible",
-      "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
-    },
-    {
-      "req_id": "R12",
-      "requirement": "Form action taken",
-      "scenario": "Block-Override-Audit - Form action taken",
-      "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
-    },
-    {
-      "req_id": "R13",
-      "requirement": "Success flash confirms",
-      "scenario": "Block-Override-Audit - Success flash confirms",
-      "status": "covered",
-      "regulation": "SOLAS Chapter V, Regulation 34"
+      "regulation": "P3-OPERATIONAL"
     }
   ],
   "coverage_gaps": [
     {
-      "gap": "Bunker margin 5-15% on arrival (remedial action recommended)",
-      "priority": "P2",
-      "regulation": "SOLAS Chapter II-1 Regulation 26",
-      "recommendation": "Add scenario to cover bunker margin 5-15% on arrival"
+      "gap": "Voyage plan must cover entire voyage from berth to berth",
+      "priority": "P1",
+      "regulation": "Safety-Critical",
+      "recommendation": "Add scenario covering: Voyage plan must cover entire voyage from berth to berth"
     },
     {
-      "gap": "Route deviation must update ETA and be logged",
-      "priority": "P3",
-      "regulation": "SOLAS Chapter V, Regulation 34",
-      "recommendation": "Add scenario to cover route deviation updating ETA and logging"
+      "gap": "FAL Form 1 (General Declaration) required for all vessel arrivals",
+      "priority": "P2",
+      "regulation": "Compliance",
+      "recommendation": "Add compliance test for: FAL Form 1 (General Declaration) required for all vessel arrivals"
     }
   ],
-  "overall_score": 40,
-  "p1_coverage_pct": 60,
-  "p2_coverage_pct": 66.67,
-  "executive_summary": "The current test coverage for voyage planning is 40% with 60% coverage of P1 requirements and 66.67% coverage of P2 requirements. Critical risks identified include bunker margin < 5% on arrival and missing FAL Form 1 for vessel arrival.",
+  "overall_score": 87,
+  "p1_coverage_pct": 50,
+  "p2_coverage_pct": 67,
+  "executive_summary": "Feature 'Voyage planning' audit: P1 Safety 50%, P2 Compliance 67%, Overall Score 87/100. 1 critical P1 gaps identified.",
   "recommendations": [
-    "Add scenario to cover bunker margin 5-15% on arrival",
-    "Add scenario to cover route deviation updating ETA and logging",
-    "Add scenario to cover bunker margin exactly at threshold (boundary case)",
-    "Add scenario to cover 96h notice for VLCC and passenger vessels (boundary case)"
+    "CRITICAL: P1 safety coverage is 50% \u2014 all P1 requirements must have dedicated test scenarios before vessel release",
+    "P2 compliance coverage is 67% \u2014 review regulatory gaps before PSC inspection",
+    "Schedule automated Playwright test execution against the staging environment before each port call"
   ],
   "feature_name": "Voyage planning",
   "playwright_coverage_pct": 20.0

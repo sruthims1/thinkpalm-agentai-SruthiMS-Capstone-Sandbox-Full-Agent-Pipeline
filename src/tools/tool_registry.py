@@ -91,10 +91,10 @@ TOOL_SCHEMAS = [
     {
         "name": "write_test_file",
         "description": (
-            "Write a generated test file to the generated_tests/ directory. "
+            "Write a generated test file to the outputs/ directory. "
             "Use file_type='feature' for Gherkin (.feature files), "
-            "'playwright' for Playwright Python scripts (.py files), "
-            "or 'report' for JSON coverage reports."
+            "'playwright' for Playwright TypeScript specs (.spec.ts files), "
+            "or 'report' for JSON coverage/audit reports."
         ),
         "input_schema": {
             "type": "object",

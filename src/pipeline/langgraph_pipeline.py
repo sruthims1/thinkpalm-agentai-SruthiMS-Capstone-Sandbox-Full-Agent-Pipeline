@@ -177,6 +177,11 @@ def run_pipeline_sync(
     log_cb=None,
 ) -> dict:
     """Run the full 4-agent pipeline synchronously. Returns final state as dict."""
+    from memory.short_term import session_memory
+    session_memory.clear()
+    session_memory.set("feature_name", feature_name)
+    session_memory.set("feature_text", feature_description)
+
     sid         = session_id or str(uuid.uuid4())
     checkpointer = _get_checkpointer()
     graph       = _build_graph(log_cb=log_cb, checkpointer=checkpointer)

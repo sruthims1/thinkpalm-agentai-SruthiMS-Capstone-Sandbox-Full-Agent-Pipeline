@@ -11,7 +11,17 @@ from typing import Callable
 
 from services.llm_service import llm
 from tools.gherkin_validator import validate_gherkin
-from tools.tool_registry import dispatch
+from tools.tool_registry import dispatch, TOOL_SCHEMAS
+
+# Schema sent to the LLM so it can call validate_gherkin itself
+_VALIDATE_SCHEMA = next(t for t in TOOL_SCHEMAS if t["name"] == "validate_gherkin")
+
+_TOOL_INSTRUCTIONS = (
+    "\n\nTOOL USE (mandatory): After generating the Gherkin feature text, call the "
+    "validate_gherkin tool with your full output. If the tool returns scenario_count < 6 "
+    "or safety_tagged_count < 2, revise your Gherkin and call validate_gherkin again. "
+    "Once validation passes, return the final Gherkin text in your response."
+)
 
 log = logging.getLogger(__name__)
 
@@ -77,18 +87,34 @@ Mandatory Edge Cases: {'; '.join(enrichment['edge_cases'])}
 Apply Two-Deadline Pattern (use Scenario Outline), Block-Override-Audit Pattern.
 Generate 8-12 scenarios. P1 safety-critical scenarios first."""
 
-        self._log(f"[{self.name}] Calling LLM (45s timeout)…")
+        self._log(f"[{self.name}] Calling LLM with tool-calling (90s timeout)…")
+        gherkin_text = ""
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                future = ex.submit(llm.complete_gen, SYSTEM_PROMPT, user_msg, 2000)
-                raw = future.result(timeout=45)
+                future = ex.submit(
+                    llm.complete_with_tools,
+                    SYSTEM_PROMPT + _TOOL_INSTRUCTIONS,
+                    user_msg,
+                    [_VALIDATE_SCHEMA],
+                    2000,
+                    dispatch,
+                )
+                raw = future.result(timeout=90)
             gherkin_text = self._extract_gherkin(raw)
-        except concurrent.futures.TimeoutError:
-            self._log(f"[{self.name}] LLM timed out (45s) — using template fallback")
-            gherkin_text = self._template_gherkin(feature_name, domain_analysis)
+            if gherkin_text:
+                self._log(f"[{self.name}] Tool-calling path succeeded")
         except Exception as exc:
-            self._log(f"[{self.name}] LLM failed ({exc}) — using template fallback")
-            gherkin_text = self._template_gherkin(feature_name, domain_analysis)
+            self._log(f"[{self.name}] Tool-calling failed ({type(exc).__name__}: {exc}) — falling back to complete_gen")
+
+        if not gherkin_text:
+            try:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                    future = ex.submit(llm.complete_gen, SYSTEM_PROMPT, user_msg, 2000)
+                    raw = future.result(timeout=45)
+                gherkin_text = self._extract_gherkin(raw)
+            except Exception as exc:
+                self._log(f"[{self.name}] LLM fallback failed ({exc}) — using template")
+                gherkin_text = self._template_gherkin(feature_name, domain_analysis)
 
         validation   = validate_gherkin(gherkin_text)
         review_loops = 0

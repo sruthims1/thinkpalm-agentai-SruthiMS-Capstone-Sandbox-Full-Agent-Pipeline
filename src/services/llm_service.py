@@ -7,7 +7,7 @@ Two model buckets to stay within free-tier rate limits:
 """
 
 from __future__ import annotations
-import os, re, time, logging
+import json, os, re, time, logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,6 +51,101 @@ class LLMService:
     def complete_gen(self, system: str, user: str, max_tokens: int = 4000) -> str:
         """8B generation model — Gherkin BDD, TypeScript Playwright (131K TPM bucket)."""
         return self._call(LLMConfig(self.GROQ_GEN, max_tokens), system, user)
+
+    def complete_with_tools(
+        self,
+        system: str,
+        user: str,
+        tools: list[dict],
+        max_tokens: int = 2000,
+        dispatcher=None,
+    ) -> str:
+        """LLM-driven tool-calling loop via Groq function calling.
+        The LLM decides which tools to invoke and when; results are fed back into context.
+        Falls back to complete_gen() transparently if tool calling fails."""
+        if not self.groq_key or not tools:
+            return self.complete_gen(system, user, max_tokens)
+        try:
+            return self._groq_with_tools(system, user, tools, max_tokens, dispatcher)
+        except Exception as exc:
+            log.warning(f"[LLMService] Tool calling failed ({str(exc)[:80]}) — fallback to complete_gen")
+            return self.complete_gen(system, user, max_tokens)
+
+    def _groq_with_tools(
+        self,
+        system: str,
+        user: str,
+        tools: list[dict],
+        max_tokens: int,
+        dispatcher,
+    ) -> str:
+        """Inner Groq tool-calling loop — up to 3 tool-call rounds."""
+        groq_tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name":        t["name"],
+                    "description": t["description"],
+                    "parameters":  t["input_schema"],
+                },
+            }
+            for t in tools
+        ]
+        messages: list[dict] = [
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user},
+        ]
+
+        for _round in range(3):
+            r = requests.post(
+                GROQ_URL,
+                headers={"Authorization": f"Bearer {self.groq_key}", "Content-Type": "application/json"},
+                json={
+                    "model":       self.GROQ_GEN,
+                    "messages":    messages,
+                    "tools":       groq_tools,
+                    "tool_choice": "auto",
+                    "max_tokens":  max_tokens,
+                    "temperature": 0.2,
+                },
+                timeout=60,
+            )
+            if r.status_code == 429:
+                time.sleep(5)
+                continue
+            r.raise_for_status()
+
+            choice = r.json()["choices"][0]
+            msg    = choice["message"]
+            finish = choice.get("finish_reason", "stop")
+
+            if finish == "tool_calls" and msg.get("tool_calls"):
+                messages.append({
+                    "role":       "assistant",
+                    "content":    msg.get("content"),
+                    "tool_calls": msg["tool_calls"],
+                })
+                for call in msg["tool_calls"]:
+                    fn_name = call["function"]["name"]
+                    try:
+                        fn_args = json.loads(call["function"]["arguments"])
+                    except Exception:
+                        fn_args = {}
+                    result = dispatcher(fn_name, fn_args) if dispatcher else json.dumps({"error": "no dispatcher"})
+                    log.info(f"[LLMService] Tool called by LLM: {fn_name}")
+                    messages.append({
+                        "role":         "tool",
+                        "tool_call_id": call["id"],
+                        "content":      result if isinstance(result, str) else json.dumps(result),
+                    })
+            else:
+                return msg.get("content") or ""
+
+        # Rounds exhausted — return last assistant text if any
+        for m in reversed(messages):
+            if m.get("role") == "assistant" and m.get("content"):
+                return m["content"]
+        raise RuntimeError("Tool-calling loop exhausted with no text response")
 
     # ── Internal routing ────────────────────────────────────────────────────────
     def _call(self, cfg: LLMConfig, system: str, user: str) -> str:
