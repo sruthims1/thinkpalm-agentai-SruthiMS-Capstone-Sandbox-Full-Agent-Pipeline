@@ -219,11 +219,50 @@ function EditModal({ tc, onSave, onClose }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
+// ── Playwright run result types ────────────────────────────────────────────────
+interface PlaywrightTestResult {
+  title: string
+  status: 'passed' | 'failed' | 'skipped' | string
+  duration: number
+  error?: string
+}
+interface PlaywrightRunResult {
+  success: boolean
+  passed: number
+  failed: number
+  total: number
+  tests: PlaywrightTestResult[]
+  spec_file?: string
+  error?: string
+}
+
 export default function OutputPanel({ result }: Props) {
   const [tab,       setTab]       = useState<OutTab>('testcases')
   const [testCases, setTestCases] = useState<TestCase[]>([])
   const [editTc,    setEditTc]    = useState<TestCase | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const [testRunState,  setTestRunState]  = useState<'idle' | 'running' | 'done'>('idle')
+  const [testRunResult, setTestRunResult] = useState<PlaywrightRunResult | null>(null)
+  const [testRunError,  setTestRunError]  = useState<string>('')
+
+  const runTests = async (featureName: string) => {
+    setTestRunState('running')
+    setTestRunResult(null)
+    setTestRunError('')
+    try {
+      const res  = await fetch(`/api/tests/run/${encodeURIComponent(featureName)}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) {
+        setTestRunError(data.detail ?? 'Unknown error')
+        setTestRunState('done')
+        return
+      }
+      setTestRunResult(data)
+    } catch (e: any) {
+      setTestRunError(e.message ?? 'Network error')
+    }
+    setTestRunState('done')
+  }
 
   useEffect(() => {
     if (result?.gherkin_result?.gherkin_text) {
@@ -400,10 +439,59 @@ export default function OutputPanel({ result }: Props) {
       {/* ── TypeScript tab ── */}
       {tab === 'playwright' && (
         <div>
-          <div style={{ background:'#0a0f1a', border:'1px solid #1e3a5f', borderRadius:'8px', padding:'0.75rem 1rem', marginBottom:'1rem', fontSize:'0.75rem', color:'#64748b' }}>
-            Place spec + config in project root, page object in <code style={{ color:'#4ade80' }}>pages/</code> →
-            run <code style={{ color:'#fbbf24' }}>npx playwright test {safe}.spec.ts</code>
+          {/* Run Tests bar */}
+          <div style={{ background:'#0a0f1a', border:'1px solid #1e3a5f', borderRadius:'8px', padding:'0.75rem 1rem', marginBottom:'1rem', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:'0.5rem' }}>
+            <span style={{ fontSize:'0.75rem', color:'#64748b' }}>
+              Mock app must be running on port 5000 ·&nbsp;
+              <code style={{ color:'#fbbf24' }}>npx playwright test {safe}.spec.ts</code>
+            </span>
+            <button
+              onClick={() => runTests(result.feature_name)}
+              disabled={testRunState === 'running'}
+              style={{ padding:'0.35rem 1rem', background: testRunState === 'running' ? '#1e293b' : '#166534', border:'1px solid #16a34a', borderRadius:'5px', color:'#4ade80', cursor: testRunState === 'running' ? 'not-allowed' : 'pointer', fontWeight:600, fontSize:'0.78rem', whiteSpace:'nowrap' }}>
+              {testRunState === 'running' ? '⏳ Running…' : '▶ Run Tests'}
+            </button>
           </div>
+
+          {/* Test run results */}
+          {testRunState !== 'idle' && (
+            <div className="card" style={{ marginBottom:'1rem', borderColor: testRunResult?.failed ? '#7f1d1d' : testRunResult?.passed ? '#14532d' : '#1e3a5f' }}>
+              {testRunState === 'running' && (
+                <div style={{ color:'#64748b', fontSize:'0.82rem' }}>⏳ Running Playwright tests against http://localhost:5000…</div>
+              )}
+              {testRunState === 'done' && testRunError && (
+                <div style={{ color:'#f87171', fontSize:'0.82rem' }}>❌ {testRunError}</div>
+              )}
+              {testRunState === 'done' && testRunResult && (
+                <>
+                  <div style={{ display:'flex', gap:'1.5rem', marginBottom:'0.75rem', alignItems:'center' }}>
+                    <span style={{ fontSize:'1.1rem', fontWeight:700, color: testRunResult.failed === 0 ? '#4ade80' : '#f87171' }}>
+                      {testRunResult.failed === 0 ? '✅' : '❌'} {testRunResult.passed} passed · {testRunResult.failed} failed · {testRunResult.total} total
+                    </span>
+                    <span style={{ fontSize:'0.7rem', color:'#64748b' }}>{testRunResult.spec_file}</span>
+                  </div>
+                  <table className="data-table">
+                    <thead>
+                      <tr><th style={{ width:'30px' }}></th><th>Test</th><th style={{ width:'80px' }}>Duration</th></tr>
+                    </thead>
+                    <tbody>
+                      {testRunResult.tests.map((t, i) => (
+                        <tr key={i}>
+                          <td style={{ textAlign:'center' }}>{t.status === 'passed' ? '✅' : t.status === 'failed' ? '❌' : '⏭'}</td>
+                          <td>
+                            <div style={{ fontSize:'0.75rem', color: t.status === 'passed' ? '#4ade80' : t.status === 'failed' ? '#f87171' : '#64748b' }}>{t.title}</div>
+                            {t.error && <div style={{ fontSize:'0.68rem', color:'#f87171', marginTop:'0.2rem', fontFamily:'Consolas,monospace' }}>{t.error}</div>}
+                          </td>
+                          <td style={{ fontSize:'0.72rem', color:'#64748b' }}>{t.duration}ms</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
+            </div>
+          )}
+
 
           {[
             { label: `${safe}.spec.ts`, content: tr?.spec_ts, filename: `${safe}.spec.ts` },

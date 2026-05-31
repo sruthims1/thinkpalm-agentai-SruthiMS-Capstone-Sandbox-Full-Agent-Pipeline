@@ -309,6 +309,108 @@ def get_session(session_id: str):
     return data
 
 
+# ── Run Playwright tests ───────────────────────────────────────────────────────
+@app.post("/api/tests/run/{feature_name}")
+def run_playwright_tests(feature_name: str):
+    """Execute the generated Playwright spec for a feature against the mock app."""
+    import subprocess, platform as _platform
+    from pathlib import Path as _Path
+
+    safe      = feature_name.lower().replace(" ", "_")
+    ts_dir    = _Path(__file__).resolve().parents[2] / "outputs" / "typescript"
+    spec_file = ts_dir / f"{safe}.spec.ts"
+
+    if not spec_file.exists():
+        raise HTTPException(status_code=404,
+            detail=f"{safe}.spec.ts not found — run the pipeline first.")
+
+    # Pre-flight: mock app must be reachable
+    try:
+        requests.get("http://localhost:5000", timeout=2)
+    except Exception:
+        raise HTTPException(status_code=503,
+            detail="Mock maritime app (port 5000) is not running. Start it before running tests.")
+
+    npx = "npx.cmd" if _platform.system() == "Windows" else "npx"
+
+    try:
+        proc = subprocess.run(
+            [npx, "playwright", "test", f"{safe}.spec.ts",
+             "--reporter=json", "--timeout=10000", "--workers=2"],
+            cwd=str(ts_dir),
+            capture_output=True,
+            text=True,
+            timeout=300,
+        )
+
+        # Playwright may write JSON to stdout or mix text before it
+        combined = (proc.stdout or "") + (proc.stderr or "")
+        import json as _j
+        report: dict = {}
+        for candidate in [proc.stdout or "", combined]:
+            start = candidate.find("{")
+            if start != -1:
+                try:
+                    report = _j.loads(candidate[start:])
+                    break
+                except Exception:
+                    pass
+
+        if report:
+            tests: list[dict] = []
+            passed = failed = 0
+
+            def _extract(suite: dict) -> None:
+                nonlocal passed, failed
+                for spec in suite.get("specs", []):
+                    for t in spec.get("tests", []):
+                        res           = (t.get("results") or [{}])[0]
+                        result_status = res.get("status", "")
+                        test_status   = t.get("status", "")
+                        if result_status == "passed" or test_status == "expected":
+                            status = "passed"; passed += 1
+                        elif result_status in ("failed", "timedOut", "interrupted") or test_status == "unexpected":
+                            status = "failed"; failed += 1
+                        else:
+                            status = "skipped"
+                        err = ""
+                        if res.get("error"):
+                            err = (res["error"].get("message") or "")[:200]
+                        tests.append({
+                            "title":    spec.get("title", ""),
+                            "status":   status,
+                            "duration": res.get("duration", 0),
+                            "error":    err,
+                        })
+                for child in suite.get("suites", []):
+                    _extract(child)
+
+            for suite in report.get("suites", []):
+                _extract(suite)
+
+            # Fallback: use stats object if suite traversal found nothing
+            if passed == 0 and failed == 0 and not tests:
+                stats  = report.get("stats", {})
+                passed = stats.get("expected", 0)
+                failed = stats.get("unexpected", 0)
+
+            return {"success": True, "passed": passed, "failed": failed,
+                    "total": passed + failed, "tests": tests,
+                    "spec_file": spec_file.name,
+                    "stdout_preview": (proc.stdout or "")[:300]}
+
+        return {"success": proc.returncode == 0, "passed": 0, "failed": 0,
+                "total": 0, "tests": [],
+                "raw_output": (proc.stdout or "")[:500],
+                "stderr":     (proc.stderr or "")[:500],
+                "spec_file":  spec_file.name}
+
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="Test run timed out (300s) — ensure Chromium is installed: cd outputs/typescript && npx playwright install chromium")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 # ── Health ─────────────────────────────────────────────────────────────────────
 @app.get("/api/health")
 def health():

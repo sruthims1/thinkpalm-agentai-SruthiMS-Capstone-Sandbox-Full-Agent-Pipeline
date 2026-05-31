@@ -568,14 +568,14 @@ See the `screenshots/` folder. Captured screens:
 | File | Content |
 |---|---|
 | `pipeline_running.png` | Pipeline tab with 4 agents completing in real-time |
-| `Testcases.png` | Test Cases tab — numbered steps with P1/P2 priority badges |
+| `Testcases_1.png` | Test Cases tab — numbered steps with P1/P2 priority badges |
 | `Gherkin.png` | Gherkin tab — tagged BDD feature file with Scenario Outline |
-| `playwright_typescript.png` | TypeScript tab — production Playwright spec with real locators |
-| `coverage_report.png` | Audit tab — traceability matrix and coverage gap table |
+| `Typescript.png` | TypeScript tab — production Playwright spec with live DOM locators |
+| `playwright_Test-results.png` | TypeScript tab — ▶ Run Tests results showing pass/fail per test |
+| `coverage_gap.png` | Audit tab — traceability matrix and coverage gap table |
 | `short_term_memory.png` | Memory tab — short-term context for the current run |
 | `long_term_memory.png` | Memory tab — long-term ChromaDB session history |
 | `knowledge_base.png` | Knowledge Base tab — IMO regulations with semantic search |
-| `cli_output.png` | CLI Rich table output from `python cli.py` |
 | `mock_app.png` | Mock maritime app — crew certs page with departure-block banner |
 
 ---
