@@ -312,50 +312,96 @@ npx playwright show-report
 
 ---
 
-## Sample Output
+## Sample Output — End-to-End Flow
 
-### Input Feature Description
+This section traces a **single feature** through all 4 agents, showing how each agent's output feeds the next.
+
+---
+
+### RAW INPUT — Feature Description
+
 ```
 Feature: Crew Certification Management
+
 The system tracks STCW certificates for all crew members.
-Certificates include: CoC, GMDSS, BST, Medical, MARPOL.
+Certificates include: CoC, GMDSS, BST, Medical, PSCRB.
 If any certificate expires the vessel cannot depart.
 A 30-day renewal warning must be shown before expiry.
 Officers can renew certificates via a modal form.
+The filter dropdown allows viewing by status: All, Expired, Expiring Soon, Valid.
 ```
 
-### Agent 1 — Domain Analysis (excerpt)
+---
+
+### AGENT 1 → MaritimeDomainAgent
+**What it does:** Queries ChromaDB KB for relevant IMO regulations, enriches the feature with exact safety thresholds, PSC detention triggers, and boundary values. Writes result to short-term memory.
+
 ```json
 {
   "risk_level": "HIGH",
-  "applicable_regulations": ["STCW 1978 (as amended)", "MLC 2006 Reg 2.3", "SOLAS Chapter V"],
+  "applicable_regulations": [
+    "STCW 1978 (as amended)",
+    "STCW Regulation I/2 — CoC validity 5 years",
+    "MLC 2006 Standard A1.2 — Medical cert 2 years",
+    "SOLAS Chapter XI-1"
+  ],
+  "p1_safety_requirements": [
+    "Vessel departure must be blocked when any crew cert is expired",
+    "GMDSS operator cert must be valid before navigational watch is assigned"
+  ],
+  "p2_compliance_requirements": [
+    "30-day expiry warning must appear for all cert types",
+    "Renewal records must satisfy STCW audit requirements"
+  ],
   "boundary_values": [
-    "Certificate validity: CoC 5 years, GMDSS 5 years, BST 5 years, Medical 2 years",
-    "30-day renewal warning window",
-    "Departure blocked when any certificate status = Expired"
+    "CoC / GMDSS / BST / PSCRB validity: 5 years",
+    "Medical cert validity: 2 years (1 year if seafarer under 18)",
+    "Expiring Soon threshold: T-30 days",
+    "Expired threshold: T-0 (departure blocked)"
   ],
   "psc_detention_triggers": [
-    "Expired CoC at port departure",
-    "Missing GMDSS endorsement for radio officer"
+    "Expired CoC at port departure — Code 2 deficiency",
+    "Missing or expired GMDSS cert — vessel cannot maintain distress watch"
+  ],
+  "mandatory_edge_cases": [
+    "Cert expires exactly on T-30: must show Expiring Soon badge",
+    "Cert expires exactly on T-0: must show Expired badge + departure block",
+    "Renewing expired cert must clear the departure block banner"
   ]
 }
 ```
 
-### Agent 2 — Gherkin BDD (excerpt)
+> **Memory:** `domain_analysis` written to `session_memory` singleton for Agents 3 & 4.
+
+---
+
+### AGENT 2 → TestStrategistAgent
+**What it does:** Uses Agent 1's boundary values, PSC triggers, and edge cases to generate Gherkin BDD scenarios. The LLM calls `validate_gherkin` as a tool, inspects quality (scenario count, safety tags), and self-corrects before returning.
+
 ```gherkin
 Feature: Crew Certification Management
 
   @p1-safety-critical @stcw @negative
   Scenario: Expired CoC blocks vessel departure
-    Given the user navigates to the crew certifications page
-    And the certification register shows a crew member with an expired CoC
+    Given the user navigates to "/crew-certs"
+    And the certification register shows a crew member with an "Expired" CoC badge
     When the departure check banner is inspected
     Then the "VESSEL DEPARTURE BLOCKED" banner is visible
-    And the banner text identifies the expired CoC
+    And the banner identifies the expired CoC as the blocking reason
+
+  @p1-safety-critical @stcw @edge-case
+  Scenario: Renewing an expired certificate clears the departure block
+    Given the user navigates to "/crew-certs"
+    And the "VESSEL DEPARTURE BLOCKED" banner is visible
+    When the user clicks the Renew button for the expired CoC
+    And fills in a future expiry date and certificate number in the modal
+    And clicks Submit
+    Then the success flash message is displayed
+    And the departure-block banner is no longer visible
 
   @p2-compliance @stcw @boundary
-  Scenario Outline: Expiry warning threshold boundaries
-    Given the user navigates to the crew certifications page
+  Scenario Outline: Expiry warning at T-30 / T-0 / T+1 thresholds
+    Given the user navigates to "/crew-certs"
     And a certificate expires in <days_to_expiry> days
     When the compliance summary is viewed
     Then <expected_alert> is displayed
@@ -365,9 +411,24 @@ Feature: Crew Certification Management
       | 30             | EXPIRY ALERT warning banner     |
       | 0              | VESSEL DEPARTURE BLOCKED banner |
       | -1             | VESSEL DEPARTURE BLOCKED banner |
+
+  @p2-compliance @stcw @happy-path
+  Scenario: Status filter shows only expired certificates
+    Given the user navigates to "/crew-certs"
+    When the user selects "Expired" from the status filter dropdown
+    Then only rows with the "Expired" badge are displayed in the table
 ```
 
-### Agent 3 — Playwright TypeScript (excerpt)
+> **Tool called by LLM:** `validate_gherkin` → returned `scenario_count=11, safety_tagged=7` → passed quality threshold, no revision needed.
+> **File written:** `outputs/gherkin/crew_certification.feature`
+
+---
+
+### AGENT 3 → AutomationEngineerAgent
+**What it does:** Scrapes the live mock app DOM at `/crew-certs` (extracts real element IDs, field names, button texts), passes the DOM context + Gherkin to the LLM, which generates TypeScript Playwright tests using **only** confirmed real locators.
+
+*DOM scraped: `#certTable`, `#statusFilter`, `#renewModal`, `input[name='new_expiry']`, `input[name='cert_number']`, `#renewSubmitBtn`, `.departure-block`, `.badge-expired`, `.badge-expiring`, `.badge-valid`, `.alert.alert-success`*
+
 ```typescript
 import { test, expect } from '@playwright/test';
 
@@ -379,28 +440,89 @@ test.describe('Crew Certification Management', () => {
 
   test.describe('P1_SAFETY', () => {
     test('Expired CoC blocks vessel departure', async ({ page }) => {
-      // the certification register shows a crew member with an expired CoC
       await expect(page.locator('.badge-expired').first()).toBeVisible();
-      // the departure check banner is inspected
       await expect(page.locator('.departure-block').first()).toBeVisible();
       await expect(page.locator('.departure-block').first())
         .toContainText('VESSEL DEPARTURE BLOCKED');
+    });
+
+    test('Renewing an expired certificate clears the departure block', async ({ page }) => {
+      await page.locator('button.btn-outline-primary').first().click();
+      await expect(page.locator('#renewModal')).toBeVisible();
+      await page.locator("input[name='new_expiry']").fill('2029-12-31');
+      await page.locator("input[name='cert_number']").fill('STCW-2029-00123');
+      await page.locator('#renewSubmitBtn').click();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('.alert.alert-success').first()).toBeVisible();
+      await expect(page.locator('.departure-block')).toHaveCount(0);
+    });
+  });
+
+  test.describe('P2_COMPLIANCE', () => {
+    test('Status filter shows only expired certificates', async ({ page }) => {
+      await page.locator('select#statusFilter').selectOption('expired');
+      await expect(page.locator('tr[data-status="expired"]').first()).toBeVisible();
     });
   });
 });
 ```
 
-### Agent 4 — Audit Report (excerpt)
+> **Files written:** `outputs/typescript/crew_certification.spec.ts`, `outputs/typescript/playwright.config.ts`
+> **Coverage calculated:** 75% — 2 of 4 requirements mapped to scenarios.
+
+---
+
+### AGENT 4 → QAAuditorAgent
+**What it does:** Maps every P1/P2/P3 requirement from Agent 1 against every scenario title from Agent 2. Scores coverage, identifies gaps, and produces a traceability matrix with recommendations.
+
 ```json
 {
-  "overall_score": 82,
+  "overall_score": 88,
   "p1_coverage_pct": 100,
-  "executive_summary": "All P1 safety-critical requirements mapped. Two boundary edge cases identified as gaps.",
+  "p2_coverage_pct": 67,
+  "executive_summary": "Crew Certification Management: P1 Safety 100%, P2 Compliance 67%, Score 88/100. One P2 gap identified — Medical cert 2-year boundary not tested.",
   "traceability_matrix": [
-    { "req_id": "P1-01", "requirement": "Block departure on expired cert", "scenario": "Expired CoC blocks vessel departure", "status": "covered" },
-    { "req_id": "P1-02", "requirement": "30-day renewal warning", "scenario": "Expiry warning threshold boundaries", "status": "covered" }
+    { "req_id": "R1", "requirement": "Block departure on expired cert",        "scenario": "Expired CoC blocks vessel departure",           "status": "covered",  "regulation": "STCW" },
+    { "req_id": "R2", "requirement": "GMDSS cert must be valid for watch",     "scenario": "Expired CoC blocks vessel departure",           "status": "partial",  "regulation": "STCW" },
+    { "req_id": "C1", "requirement": "30-day expiry warning for all cert types","scenario": "Expiry warning at T-30 / T-0 / T+1 thresholds","status": "covered",  "regulation": "STCW" },
+    { "req_id": "C2", "requirement": "Medical cert: 2-year validity boundary", "scenario": null,                                            "status": "gap",      "regulation": "MLC"  }
+  ],
+  "coverage_gaps": [
+    {
+      "gap": "Medical cert 2-year validity boundary not covered",
+      "priority": "P2",
+      "regulation": "MLC 2006 Standard A1.2",
+      "recommendation": "Add Scenario Outline: Medical cert at T-730 (2yr), T-729 (Expiring Soon), T-0 (Expired + block)"
+    }
+  ],
+  "recommendations": [
+    "P2 compliance coverage is 67% — add Medical cert boundary scenarios before PSC inspection",
+    "Schedule automated Playwright test execution against staging before each port call"
   ]
 }
+```
+
+> **File written:** `outputs/audit/crew_certification_audit_report.json`
+
+---
+
+### FLOW SUMMARY
+
+```
+Raw feature description (6 lines)
+        │
+        ▼
+Agent 1 — KB query → HIGH risk, 4 regulations, exact thresholds (CoC 5yr, Medical 2yr, T-30 warning)
+        │  writes domain_analysis → session_memory
+        ▼
+Agent 2 — LLM calls validate_gherkin tool → 11 scenarios, 7 @p1-safety-critical tagged
+        │  Two-Deadline Outline: T-31 (no alert) / T-30 (warning) / T-0 (blocked) / T+1 (blocked)
+        ▼
+Agent 3 — DOM scrape: 11 ids, 6 fields, 4 buttons confirmed → TypeScript spec with real locators
+        │  calculate_coverage: 75% of requirements mapped
+        ▼
+Agent 4 — Traceability matrix: 4 requirements → R1 covered, R2 partial, C1 covered, C2 GAP
+          Score: 88/100 | P1: 100% | P2: 67% | 1 gap → Medical cert 2yr boundary missing
 ```
 
 ---
