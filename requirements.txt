@@ -4,7 +4,6 @@ requests>=2.31.0
 
 # ── LangGraph 4-agent orchestration ───────────────────────────────────────────
 langgraph>=0.2.0
-langgraph-checkpoint-sqlite>=2.0.0
 
 # ── API backend ────────────────────────────────────────────────────────────────
 fastapi>=0.111.0
