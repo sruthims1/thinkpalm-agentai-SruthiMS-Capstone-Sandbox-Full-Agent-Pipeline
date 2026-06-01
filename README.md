@@ -534,8 +534,9 @@ Agent 4 — Traceability matrix: 4 requirements → R1 covered, R2 partial, C1 c
 
 - **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 45s hard timeout)
 - **Knowledge Base:** Queries ChromaDB for the top-4 most relevant IMO regulation chunks before LLM analysis — ensures exact regulatory thresholds (e.g. "min 10h rest per 24h") appear in output, not hallucinated approximations
+- **App Feature KB:** Queries ChromaDB `app_features` collection for the feature's mock app page context (workflows, testable states, real DOM selectors). Injects this alongside regulatory KB so `mandatory_edge_cases` covers every mock app workflow, not just regulatory boundaries
 - **Long-Term Memory Read:** Before calling the LLM, searches ChromaDB long-term memory for prior analyses of similar features (similarity ≥ 0.5). If found, injects prior risk levels and P1 requirements as supporting context — enabling cross-feature learning across pipeline runs
-- **Short-Term Memory Write:** Writes completed `domain_analysis` to the shared `session_memory` singleton so Agents 3 and 4 can read it as a fallback if LangGraph state is sparse
+- **Short-Term Memory Write:** Writes completed `domain_analysis` to the shared `session_memory` singleton so Agents 2, 3, 4 can read it as a fallback if LangGraph state is sparse
 - **Output:** `risk_level` (HIGH/MEDIUM/LOW), `applicable_regulations`, P1/P2/P3 requirements, `boundary_values` (exact thresholds), `psc_detention_triggers`, `mandatory_edge_cases`
 - **Fallback:** Keyword-based heuristic if LLM call times out
 
@@ -543,18 +544,30 @@ Agent 4 — Traceability matrix: 4 requirements → R1 covered, R2 partial, C1 c
 **Role:** BDD test scenario generator applying maritime-specific test patterns with LLM-driven tool calling.
 
 - **Model:** `llama-3.1-8b-instant` via Groq (131K TPM, 90s timeout for tool-calling loop)
+- **App Feature KB Injection:** Queries AppFeaturesKB for the feature (e.g. "Voyage Planning") and injects a `REQUIRED — write exactly ONE distinct scenario per workflow and testable state` block into the user message. This tells the LLM: "here are 4 workflows and 8 testable states; write 8–12 scenarios covering them all, without repetition." Eliminates duplication and ensures comprehensive test coverage
+- **Prompt Tightening:** SYSTEM_PROMPT now includes:
+  - BANNED phrases list ("the system must", "audit log created", "status updated to") — prevents abstract language
+  - Mandatory Given/When/Then pattern with good/bad examples — enforces concrete UI steps
+  - Complete mock app element list with CSS selectors — removes invented locators
+  - Compact variant (`_TOOL_SYSTEM_PROMPT`, 1100 chars) used for tool-calling path to avoid 413 payload errors on long feature descriptions
 - **Tool-Calling Loop:** Uses `llm.complete_with_tools()` — the LLM is given the `validate_gherkin` tool schema and decides when to invoke it. After generating Gherkin, the LLM calls `validate_gherkin`, receives structural quality metrics (scenario count, safety tag count), and self-corrects if thresholds are not met — all within a single agentic loop (up to 3 rounds)
 - **Patterns:** Two-Deadline (T-30/T-7/T-0/T+1), Block-Override-Audit (banner → action → flash confirm), no-auth scenario design (mock app has no login)
-- **Safety Net:** If tool-calling fails (e.g. 413 payload too large), falls back to plain `complete_gen()` then to template generation — pipeline never halts
+- **Safety Net:** If tool-calling fails (e.g. 413 payload too large, 429 rate limit), falls back to plain `complete_gen()` then to template generation — pipeline never halts
 - **Tools called (LLM-driven):** `validate_gherkin` — LLM decides to call this; result fed back into LLM context for self-correction
 - **Tools called (programmatic):** `write_test_file` (saves `.feature` to `outputs/gherkin/`)
-- **Output:** 8–12 scenarios tagged with risk priority + regulation + test type
+- **Output:** 8–12 scenarios tagged with risk priority + regulation + test type, using real app workflows and testable states
 
 ### Agent 3 — AutomationEngineerAgent
 **Role:** Production TypeScript Playwright test generator with live DOM awareness.
 
 - **Model:** `llama-3.1-8b-instant` via Groq — **LLM guided by live-scraped DOM locators**
 - **Short-Term Memory Read:** Reads `domain_analysis` and `gherkin_output` from `session_memory` as a fallback enrichment if LangGraph state is sparse (e.g. partial pipeline resume)
+- **Scraper Timeout:** DOM scraper wrapped in 20-second `ThreadPoolExecutor` timeout. If Playwright browser hangs, falls back gracefully to hardcoded AST-based locator generation — prevents Agent 3 from blocking the entire pipeline
+- **Test Discovery Fix:** Auto-expands `for...of` loops into literal `test()` calls via `_convert_test_each_block()` sanitiser. Playwright only discovers tests written literally in code, not generated in loops; this ensures all test cases are registered and run
+- **Prompt Tightening:** LLM_SYSTEM_PROMPT now includes:
+  - URL rules (valid pages only: `/crew-certs`, `/fatigue`, `/incidents`, `/voyage`, `/port-call` — no resource URLs like `/voyage/VOY-XXXX`)
+  - Parameterized test pattern (use `for...of` loops, not `test.each()`, because fixture position differs)
+  - Complete locator rules with real mock app selector examples
 - **Primary path (mock app running):**
   1. Launches headless Chromium via `mock_app_scraper.py` (Playwright Python)
   2. Navigates to the relevant page and extracts all element IDs, form field names, button texts, modal IDs, badge classes, and table selectors via `page.evaluate()`
@@ -594,13 +607,14 @@ All tools are registered in `src/tools/tool_registry.py` with full JSON Schema d
 
 | Store | Technology | Scope | Read by | Write by | Contents |
 |---|---|---|---|---|---|
-| **Short-Term Memory** | In-memory singleton (`session_memory` in `short_term.py`) | Single run | Agents 3, 4 (fallback enrichment) | API layer + Agent 1 | Feature name, domain analysis, Gherkin output, Playwright scripts, coverage report — cleared at start of each run |
+| **Short-Term Memory** | In-memory singleton (`session_memory` in `short_term.py`) | Single run | Agents 1–4, API layer | API layer + Agent 1 | Feature name, domain analysis, Gherkin output, Playwright scripts, coverage report — cleared at start of each run |
 | **LangGraph Checkpoints** | SQLite `memory/checkpoints.db` | Cross-run | LangGraph pipeline | LangGraph pipeline | Pipeline execution state — enables `--session-id` resume in CLI |
 | **Session History** | SQLite `memory/sessions.db` | Cross-session | Memory tab, `/api/sessions` | API layer (end of run) | Full pipeline results for the Memory tab history view |
-| **Knowledge Base** | ChromaDB `memory/chroma_db/` | Persistent | Agent 1 (top-4 semantic results per run) | Seed on startup | 16 IMO maritime regulation chunks (SOLAS, STCW, MLC, ISM, MARPOL, FAL, ISPS, BMP5) |
+| **Knowledge Base** | ChromaDB `memory/chroma_db/kb_maritime` | Persistent | Agent 1 (top-4 semantic results per run) | Seed on startup | 16 IMO maritime regulation chunks (SOLAS, STCW, MLC, ISM, MARPOL, FAL, ISPS, BMP5) |
+| **App Feature KB** | ChromaDB `memory/chroma_db/app_features` | Persistent | Agent 1, Agent 2 | Seed on startup | 5 mock app pages: workflows, testable states, real DOM selectors (IDs, field names, button classes) |
 | **Long-Term Memory** | ChromaDB `memory/chroma_db/` | Persistent | Agent 1 (prior similar analyses, similarity ≥ 0.5) | API layer (end of run) | Past domain analyses, Gherkin snapshots, coverage reports — cross-feature learning |
 
-> **How memory flows through the pipeline:** Agent 1 reads KB + LTM → enriches its prompt → writes result to STM. Agents 3 and 4 read STM as a fallback. The API layer writes LTM and session history after each completed run.
+> **How memory flows through the pipeline:** Agent 1 reads KB + App KB + LTM → enriches its prompt with both regulatory boundaries AND mock app workflows → writes result to STM. Agent 2 reads App KB workflows and injects them into user message to prevent scenario duplication and ensure all app features are tested. Agents 3 and 4 read STM as a fallback. The API layer writes LTM and session history after each completed run.
 
 ---
 
@@ -661,14 +675,20 @@ All tools are registered in `src/tools/tool_registry.py` with full JSON Schema d
 
 ### What Worked Well
 
-**1. LLM-driven tool-calling loop improves Gherkin quality without hard-coded logic.**
-Agent 2 uses Groq's function-calling API (`complete_with_tools()`) to give the LLM a `validate_gherkin` tool. The LLM generates Gherkin, calls the tool, inspects the structural quality metrics (scenario count, safety tag count), and self-corrects within the same agentic loop — up to 3 rounds. This removed the need for a separate hard-coded review pass and makes the quality gate genuinely agent-driven. A compact system prompt variant (`_TOOL_SYSTEM_PROMPT`) is used for this path to stay within Groq's payload limit on long inputs (e.g. JIRA descriptions); the full detailed prompt is preserved for the fallback path.
+**1. App Feature KB separates regulatory requirements from executable test workflows.**
+Introduced a new ChromaDB collection (`app_features`) containing 5 mock app pages with concrete workflows (e.g., "click Renew button → #renewModal visible → fill input[name='new_expiry'] → click #renewSubmitBtn"), testable states using real selectors (e.g., ".departure-block visible", ".badge.bg-warning.text-dark shows '2'"), and validations. Agent 1 injects this alongside the regulatory KB so that `mandatory_edge_cases` covers both "what the regulations require" AND "which workflows and states the mock app actually supports." Agent 2 uses the App KB to generate one scenario per workflow — eliminating the repetition that plagued earlier runs (18 test cases instead of 10 discovered). This represents a sea-change in bridging the regulation/implementation gap.
+
+**2. LLM-driven tool-calling loop improves Gherkin quality without hard-coded logic.**
+Agent 2 uses Groq's function-calling API (`complete_with_tools()`) to give the LLM a `validate_gherkin` tool. The LLM generates Gherkin, calls the tool, inspects the structural quality metrics (scenario count, safety tag count), and self-corrects within the same agentic loop — up to 3 rounds. This removed the need for a separate hard-coded review pass and makes the quality gate genuinely agent-driven. A compact system prompt variant (`_TOOL_SYSTEM_PROMPT`, 1100 chars) is used for this path to stay within Groq's payload limit on long inputs (e.g. JIRA descriptions); the full detailed prompt is preserved for the fallback path.
 
 **2. Knowledge Base grounding eliminates hallucinated thresholds.**
 The biggest practical gain from wiring ChromaDB KB into Agent 1 was that boundary values became accurate. Before KB integration, the LLM would produce generic thresholds like "certificates must be renewed periodically." After integration, output contained exact values: "CoC validity 5 years, BST 5 years, Medical 2 years, 30-day renewal window, min 10h rest per 24h (STCW A-VIII/1)." This directly improves the quality of Scenario Outline `Examples:` tables.
 
-**2. Live DOM scraping grounds LLM locator generation in reality.**
-Agent 3 now launches a headless Chromium browser before calling the LLM, scrapes all element IDs, field names, and button texts from the running page, and injects them as a DOM CONTEXT block into the prompt. This eliminated the class of failures where the LLM invented element IDs that didn't exist. A post-processing sanitiser additionally fixes CSS combinator mistakes (`.badge .bg-warning` → `.badge.bg-warning`) and replaces `toHaveText` with `toContainText` on elements that contain icon text or whitespace. When the mock app is offline, the agent falls back to a deterministic AST generator using hardcoded locators.
+**3. Live DOM scraping + App KB real selectors ground all test generation in reality.**
+Agent 3 now launches a headless Chromium browser before calling the LLM, scrapes all element IDs, field names, and button texts from the running page, and injects them as a DOM CONTEXT block into the prompt. Combined with the App KB providing the same real selectors in workflows (e.g., "#certTable", "input[name='new_expiry']", "#renewSubmitBtn"), this creates a "single source of truth" for what elements actually exist. The LLM no longer invents selectors like ".dg-declaration-checkbox" or ".bunker-status" that don't exist. A post-processing sanitiser additionally fixes CSS combinator mistakes (`.badge .bg-warning` → `.badge.bg-warning`) and replaces `toHaveText` with `toContainText` on elements that contain icon text or whitespace. When the mock app is offline, the agent falls back to a deterministic AST generator using hardcoded locators.
+
+**4. Playwright test discovery fix: auto-expand for loops into literal test() calls.**
+The LLM often generates parameterized tests as `for...of` loops because that's the natural pattern in TypeScript. However, Playwright's test discovery happens at parse time, not runtime — it only discovers test() calls that are written literally in code. A new `_convert_test_each_block()` sanitiser automatically expands these loops into literal test() calls, ensuring all test cases are registered and run. This increased test case discovery from 10 to 18 in a recent Voyage Planning run.
 
 **3. LangGraph SSE streaming significantly improves perceived performance.**
 Because each agent's output streams to the frontend as it completes, users see meaningful progress within 10–15 seconds of clicking Run, even though the full pipeline takes 60–90 seconds. Without streaming, the UX would feel like a timeout.
