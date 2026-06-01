@@ -160,8 +160,7 @@ MarineQAPilot/
 ├── cli.py                                # CLI: python cli.py --help
 ├── .env.example                          # Environment variable template
 ├── requirements.txt                      # Python dependencies
-├── start.bat                             # Windows one-click startup
-└── SRS_MarineOps_FleetManagement.md      # Domain reference document
+└── start.bat                             # Windows one-click startup
 ```
 
 ---
