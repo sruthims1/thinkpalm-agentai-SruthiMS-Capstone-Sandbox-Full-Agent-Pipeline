@@ -62,6 +62,18 @@ LOCATOR RULES (strict — DOM CONTEXT is the only source of truth):
 - Not visible:    await expect(locator).toHaveCount(0)
 - Step not in DOM: // NOT IN MOCK APP: <step>
 
+URL RULES:
+- Valid pages: /crew-certs, /fatigue, /incidents, /voyage, /port-call ONLY
+- NEVER use resource URLs like /voyage/VOY-2026-046 or /voyage/new — these do not exist
+- Modals are opened by clicking a button on the page, not by navigating to a new URL
+
+PARAMETERIZED TESTS:
+- NEVER use test.each() — it requires fixtures in a different position and breaks Playwright
+- Use a for...of loop inside test.describe() instead:
+  for (const [input, expected] of [['val1','exp1'],['val2','exp2']]) {
+    test(`title ${input}`, async ({ page }) => { ... });
+  }
+
 OUTPUT: import block + test.describe with P1_SAFETY / P2_COMPLIANCE / P3_OPERATIONAL groups.
 Return ONLY the TypeScript. No markdown fences."""
 
@@ -306,6 +318,70 @@ class AutomationEngineerAgent:
             return cleaned
         return ""
 
+    # ── for...of loop expander — generates literal test() calls ────────────────
+
+    @staticmethod
+    def _convert_test_each_block(spec: str) -> str:
+        """Expand for...of loops into literal test() calls for Playwright discovery.
+
+        Pattern: for (const [a, b] of [[val1,val2], [val3,val4]]) { test(`...`, ...) }
+        Becomes: test(`... val1 val2`, ...); test(`... val3 val4`, ...);
+
+        Playwright only discovers test() calls that are written literally, not generated
+        dynamically in loops. This expander ensures all tests are discoverable.
+        """
+        # Pattern: for (const [destructure] of [array] as [...][]) { ... test(...) ... }
+        pattern = re.compile(
+            r"for\s*\(\s*const\s*\[([^\]]+)\]\s*of\s*\[((?:\[[^\]]*\](?:,\s*)?)+)\]\s*as\s*\[string,string\]\[\]\s*\)\s*\{([^}]*?test\([^}]*?)\}",
+            re.DOTALL
+        )
+
+        def expand_loop(m: re.Match) -> str:
+            destructure = m.group(1).strip()  # e.g., "qty, status"
+            cases_str   = m.group(2).strip()   # e.g., "['15', 'ADEQUATE'], ['10', 'WARNING']"
+            body        = m.group(3).strip()   # test body
+
+            # Parse variable names
+            vars_list = [v.strip() for v in destructure.split(",")]
+
+            # Extract test cases: ['val1', 'val2'], ['val3', 'val4'], ...
+            cases_pattern = re.compile(r"\[([^\]]+)\]")
+            cases_matches = cases_pattern.findall(cases_str)
+
+            if not cases_matches:
+                return m.group(0)  # Return original if parse fails
+
+            expanded_tests = []
+            for case_match in cases_matches:
+                values = [v.strip().strip("'\"") for v in case_match.split(",")]
+                if len(values) != len(vars_list):
+                    continue
+
+                # Build substitution dict
+                subs = dict(zip(vars_list, values))
+
+                # Substitute variables in the test body
+                # Handle template literals: ${var} → value
+                test_body = body
+                for var, val in subs.items():
+                    test_body = re.sub(
+                        rf"\$\{{\s*{re.escape(var)}\s*\}}",
+                        val,
+                        test_body
+                    )
+                    # Also handle plain variable references in template strings
+                    test_body = re.sub(
+                        rf'`([^`]*){re.escape(var)}([^`]*)`',
+                        lambda m2: f"`{m2.group(1)}{val}{m2.group(2)}`",
+                        test_body
+                    )
+
+                expanded_tests.append(test_body)
+
+            return "\n  ".join(expanded_tests) if expanded_tests else m.group(0)
+
+        return pattern.sub(expand_loop, spec)
+
     # ── Post-generation sanitiser — fixes systematic LLM CSS mistakes ────────
 
     @staticmethod
@@ -348,6 +424,14 @@ class AutomationEngineerAgent:
             r"#flashMessage[^)]*\)\.toHaveText\(",
         ):
             spec = re.sub(pattern, lambda m: m.group(0).replace(".toHaveText(", ".toContainText("), spec)
+
+        # ── Fix 3: test.each() → for...of loop ───────────────────────────────
+        # test.each breaks Playwright because the page fixture position differs.
+        spec = AutomationEngineerAgent._convert_test_each_block(spec)
+
+        # ── Fix 4: invalid resource URLs → page URL ──────────────────────────
+        # /voyage/VOY-XXXX, /crew-certs/123, /incidents/456 etc. don't exist
+        spec = re.sub(r"(localhost:5000/(?:voyage|crew-certs|fatigue|incidents|port-call))/[A-Za-z0-9_%-]+", r"\1", spec)
 
         return spec
 
