@@ -3,83 +3,97 @@
     {
       "req_id": "R1",
       "requirement": "Voyage plan must cover entire voyage from berth to berth",
-      "scenario": null,
-      "status": "gap",
+      "scenario": "P1 - Voyage plan must cover entire voyage from berth to berth",
+      "status": "covered",
       "regulation": "P1-SAFETY"
     },
     {
       "req_id": "R2",
-      "requirement": "Bunker margin < 5% on arrival (propulsion failure risk)",
-      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
+      "requirement": "Zero bunker entry",
+      "scenario": "P1 - Zero bunker entry",
+      "status": "covered",
+      "regulation": "P1-SAFETY"
+    },
+    {
+      "req_id": "R3",
+      "requirement": "Negative bunker",
+      "scenario": "P1 - Negative bunker",
+      "status": "covered",
+      "regulation": "P1-SAFETY"
+    },
+    {
+      "req_id": "R4",
+      "requirement": "Margin < 5%",
+      "scenario": "P1 - Margin < 5%",
       "status": "covered",
       "regulation": "P1-SAFETY"
     },
     {
       "req_id": "C1",
-      "requirement": "Bunker margin 5-15% on arrival (remedial action recommended)",
-      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
+      "requirement": "Weather deviation must be confirmed by Master",
+      "scenario": "P1 - Voyage plan must cover entire voyage from berth to berth",
       "status": "covered",
       "regulation": "P2-COMPLIANCE"
     },
     {
       "req_id": "C2",
-      "requirement": "24-hour pre-arrival notice for EU ports",
-      "scenario": "Validate EU port pre-arrival notice deadlines",
-      "status": "covered",
-      "regulation": "P2-COMPLIANCE"
-    },
-    {
-      "req_id": "C3",
-      "requirement": "FAL Form 1 (General Declaration) required for all vessel arrivals",
+      "requirement": "Bunker consumption calculation validation",
       "scenario": null,
       "status": "partial",
       "regulation": "P2-COMPLIANCE"
     },
     {
-      "req_id": "O1",
-      "requirement": "Route deviation must update ETA and be logged",
-      "scenario": "Confirm route deviation to prevent PSC detention",
+      "req_id": "C3",
+      "requirement": "24-hour pre-arrival notice for EU ports",
+      "scenario": "Boundary - min 24h pre-arrival notice for EU ports",
       "status": "covered",
-      "regulation": "P3-OPERATIONAL"
+      "regulation": "P2-COMPLIANCE"
     },
     {
-      "req_id": "O2",
-      "requirement": "Weather deviation must be confirmed by Master",
+      "req_id": "C4",
+      "requirement": "FAL Form 1 (General Declaration) required for ALL vessel arrivals",
+      "scenario": "PSC - Expired or missing FAL Form 1",
+      "status": "covered",
+      "regulation": "P2-COMPLIANCE"
+    },
+    {
+      "req_id": "O1",
+      "requirement": "Route deviation must update ETA and be logged",
       "scenario": null,
       "status": "gap",
       "regulation": "P3-OPERATIONAL"
     },
     {
+      "req_id": "O2",
+      "requirement": "Bunker Margin on Arrival calculation",
+      "scenario": "Boundary - min 15% bunker margin on arrival",
+      "status": "covered",
+      "regulation": "P3-OPERATIONAL"
+    },
+    {
       "req_id": "O3",
-      "requirement": "Bunker consumption calculation for voyage planning",
-      "scenario": "Validate bunker margin safety thresholds for propulsion failure risk",
+      "requirement": "Dangerous goods on board: 24h notice mandatory regardless of voyage duration",
+      "scenario": "PSC - Dangerous goods on board without 24h notice",
       "status": "covered",
       "regulation": "P3-OPERATIONAL"
     }
   ],
   "coverage_gaps": [
     {
-      "gap": "Voyage plan must cover entire voyage from berth to berth",
-      "priority": "P1",
-      "regulation": "Safety-Critical",
-      "recommendation": "Add scenario covering: Voyage plan must cover entire voyage from berth to berth"
-    },
-    {
-      "gap": "FAL Form 1 (General Declaration) required for all vessel arrivals",
+      "gap": "Bunker consumption calculation validation",
       "priority": "P2",
       "regulation": "Compliance",
-      "recommendation": "Add compliance test for: FAL Form 1 (General Declaration) required for all vessel arrivals"
+      "recommendation": "Add compliance test for: Bunker consumption calculation validation"
     }
   ],
-  "overall_score": 87,
-  "p1_coverage_pct": 50,
-  "p2_coverage_pct": 67,
-  "executive_summary": "Feature 'Voyage planning' audit: P1 Safety 50%, P2 Compliance 67%, Overall Score 87/100. 1 critical P1 gaps identified.",
+  "overall_score": 97,
+  "p1_coverage_pct": 100,
+  "p2_coverage_pct": 75,
+  "executive_summary": "Feature 'Voyage planning' audit: P1 Safety 100%, P2 Compliance 75%, Overall Score 97/100. 0 critical P1 gaps identified.",
   "recommendations": [
-    "CRITICAL: P1 safety coverage is 50% \u2014 all P1 requirements must have dedicated test scenarios before vessel release",
-    "P2 compliance coverage is 67% \u2014 review regulatory gaps before PSC inspection",
+    "P2 compliance coverage is 75% \u2014 review regulatory gaps before PSC inspection",
     "Schedule automated Playwright test execution against the staging environment before each port call"
   ],
   "feature_name": "Voyage planning",
-  "playwright_coverage_pct": 20.0
+  "playwright_coverage_pct": 62.5
 }

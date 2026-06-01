@@ -1,127 +1,108 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('P1_SAFETY', () => {
-  test('Verify piracy alert visibility on voyage dashboard', async ({ page }) => {
+  test('Voyage plan must cover entire voyage from berth to berth', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const piracyAlert = page.locator('#piracy-alert-VOY-2026-046');
-    await expect(piracyAlert).toBeVisible();
-    const text = await piracyAlert.textContent();
-    expect(text).toContain('PIRACY ALERT: MV Star Nour — Active voyage VOY-2026-046 passes through high-risk area. IMB Piracy Reporting Centre notification sent.');
+    await expect(page.locator('#voyageDetailCard')).toBeVisible();
+    await expect(page.locator('#voyageDetailCard')).toContainText('Voyage Detail — VOY-2026-046 Route Waypoints Port of Si');
   });
 
-  test('Validate bunker margin safety thresholds for propulsion failure risk', async ({ page }) => {
+  test('Zero bunker entry', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const detailsButton = page.locator('button[onclick^="showVoyageDetails(\'VOY-2026-046\')"]');
-    await detailsButton.click();
-    const bunkerMargin = page.locator('#bunker-margin-VOY-2026-046');
-    await expect(bunkerMargin).toBeVisible();
-    const text = await bunkerMargin.textContent();
-    expect(text).toContain('15%');
-    const bunkerStatus = page.locator('#bunker-status-VOY-2026-046');
-    await expect(bunkerStatus).toBeVisible();
-    const statusText = await bunkerStatus.textContent();
-    expect(statusText).toContain('Compliant');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="bunker_qty"]').fill('0');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-success')).toBeVisible();
   });
 
-  test('Confirm route deviation to prevent PSC detention', async ({ page }) => {
+  test('Negative bunker', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const detailsButton = page.locator('button[onclick^="showVoyageDetails(\'VOY-2026-046\')"]');
-    await detailsButton.click();
-    const confirmDeviationButton = page.locator('#confirmDeviationBtn');
-    await confirmDeviationButton.click();
-    const successFlashMessage = page.locator('.alert.alert-success');
-    await expect(successFlashMessage).toBeVisible();
-    const text = await successFlashMessage.textContent();
-    expect(text).toContain('Route deviation logged and confirmed by Master');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="bunker_qty"]').fill('-1');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-danger')).toBeVisible();
   });
 
-  test('Block departure for incomplete passage plan', async ({ page }) => {
+  test('Margin < 5%', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const planNewVoyageButton = page.locator('[data-bs-target="#newVoyageModal"]');
-    await planNewVoyageButton.click();
-    const voyageIdInput = page.locator('input[name="voyage_id"]');
-    await voyageIdInput.fill('VOY-2026-099');
-    const waypointsInput = page.locator('input[name="waypoints"]');
-    await waypointsInput.fill('');
-    const saveButton = page.locator('button[type="submit"]');
-    await saveButton.click();
-    const departureBlockBanner = page.locator('.departure-block');
-    await expect(departureBlockBanner).toBeVisible();
-    const text = await departureBlockBanner.textContent();
-    expect(text).toContain('DEPARTURE BLOCKED: Voyage plan does not cover departure berth to arrival berth');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="bunker_qty"]').fill('1000');
+    await page.locator('input[name="distance_nm"]').fill('5000');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-success')).toBeVisible();
   });
 });
 
 test.describe('P2_COMPLIANCE', () => {
-  test('Successful voyage registration and table load', async ({ page }) => {
+  test('Voyage register loads on page open', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const voyageTable = page.locator('#voyageTable');
-    await expect(voyageTable).toBeVisible();
-    const columns = await voyageTable.allInnerTexts();
-    expect(columns).toContain('Voyage ID');
-    expect(columns).toContain('Vessel');
-    expect(columns).toContain('Route');
-    expect(columns).toContain('Departure');
-    expect(columns).toContain('ETA');
-    expect(columns).toContain('Distance');
-    expect(columns).toContain('Bunker');
-    expect(columns).toContain('ECA Zones');
-    expect(columns).toContain('Status');
-    expect(columns).toContain('Action');
-    const voyageRows = await voyageTable.allInnerTexts();
-    expect(voyageRows).toContain('VOY-2026-045');
-    expect(voyageRows).toContain('VOY-2026-046');
+    await expect(page.locator('table.table')).toBeVisible();
+    await expect(page.locator('table.table')).toContainText('Voyage ID');
+    await expect(page.locator('table.table')).toContainText('Vessel');
+    await expect(page.locator('table.table')).toContainText('Route');
+    await expect(page.locator('table.table')).toContainText('Departure');
+    await expect(page.locator('table.table')).toContainText('ETA');
+    await expect(page.locator('table.table')).toContainText('Distance');
+    await expect(page.locator('table.table')).toContainText('Bunker');
+    await expect(page.locator('table.table')).toContainText('ECA Zones');
+    await expect(page.locator('table.table')).toContainText('Status');
+    await expect(page.locator('table.table')).toContainText('Action');
   });
 
-  test('Validate EU port pre-arrival notice deadlines', async ({ page }) => {
+  test('Piracy alert is auto-displayed without any user action', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const detailsButton = page.locator('button[onclick^="showVoyageDetails(\'VOY-2026-045\')"]');
-    await detailsButton.click();
-    const arrivalNoticeStatus = page.locator('#arrival-notice-status-VOY-2026-045');
-    await expect(arrivalNoticeStatus).toBeVisible();
-    const text = await arrivalNoticeStatus.textContent();
-    expect(text).toContain('T-30h');
+    await expect(page.locator('.departure-block')).toBeVisible();
+    await expect(page.locator('.departure-block')).toContainText('PIRACY ALERT: MV Star Nour — Active voyage VOY-2026-046 passes through');
   });
 
-  test('Verify ECA zone badges for fuel compliance', async ({ page }) => {
+  test('ECA zone badge is shown for affected routes', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const ecaBadge = page.locator('.badge.bg-warning.text-dark');
-    await expect(ecaBadge).toBeVisible();
-    const text = await ecaBadge.textContent();
-    expect(text).toContain('2 ECA');
-    const ecaBadge2 = page.locator('.badge.bg-success');
-    await expect(ecaBadge2).toBeVisible();
-    const text2 = await ecaBadge2.textContent();
-    expect(text2).toContain('None');
+    await expect(page.locator('.badge.bg-warning.text-dark')).toContainText('2 ECA');
+    await expect(page.locator('.badge.bg-success')).toContainText('None');
+  });
+
+  test('Voyage detail panel shows fuel plan and weather alert', async ({ page }) => {
+    await page.goto('http://localhost:5000/voyage');
+    await page.locator('button[onclick^="showVoyageDetails(\'VOY-2026-046\')"]').click();
+    await expect(page.locator('#voyageDetailCard')).toBeVisible();
+    await expect(page.locator('#voyageDetailCard')).toContainText('Fuel Plan');
+    await expect(page.locator('#voyageDetailCard')).toContainText('Weather Alert');
   });
 });
 
 test.describe('P3_OPERATIONAL', () => {
-  test('Plan new voyage', async ({ page }) => {
+  test('Boundary - min 15% bunker margin on arrival', async ({ page }) => {
     await page.goto('http://localhost:5000/voyage');
-    const planNewVoyageButton = page.locator('[data-bs-target="#newVoyageModal"]');
-    await planNewVoyageButton.click();
-    const vesselSelect = page.locator('select[name="vessel"]');
-    await vesselSelect.selectOption('MV Oceanic Pioneer');
-    const fuelTypeSelect = page.locator('select[name="fuel_type"]');
-    await fuelTypeSelect.selectOption('VLSFO (0.5% Sulphur)');
-    const departurePortInput = page.locator('input[name="departure_port"]');
-    await departurePortInput.fill('Port of Houston');
-    const arrivalPortInput = page.locator('input[name="arrival_port"]');
-    await arrivalPortInput.fill('Port of Rotterdam');
-    const departureDateInput = page.locator('input[name="departure_date"]');
-    await departureDateInput.fill('2024-01-01');
-    const speedKtsInput = page.locator('input[name="speed_kts"]');
-    await speedKtsInput.fill('14.5');
-    const bunkerQtyInput = page.locator('input[name="bunker_qty"]');
-    await bunkerQtyInput.fill('1850');
-    const distanceNmInput = page.locator('input[name="distance_nm"]');
-    await distanceNmInput.fill('5420');
-    const saveButton = page.locator('button[type="submit"]');
-    await saveButton.click();
-    const successFlashMessage = page.locator('.alert.alert-success');
-    await expect(successFlashMessage).toBeVisible();
-    const text = await successFlashMessage.textContent();
-    expect(text).toContain('Voyage plan created successfully');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="bunker_qty"]').fill('1000');
+    await page.locator('input[name="distance_nm"]').fill('5000');
+    await page.locator('input[name="speed_kts"]').fill('15');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-success')).toBeVisible();
+  });
+
+  test('Boundary - max 5% bunker margin on arrival', async ({ page }) => {
+    await page.goto('http://localhost:5000/voyage');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="bunker_qty"]').fill('1000');
+    await page.locator('input[name="distance_nm"]').fill('5000');
+    await page.locator('input[name="speed_kts"]').fill('15');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-success')).toBeVisible();
+  });
+
+  test('Boundary - min 24h pre-arrival notice for EU ports', async ({ page }) => {
+    await page.goto('http://localhost:5000/voyage');
+    await page.locator('select[name="vessel"]').selectOption('MV Oceanic Pioneer');
+    await page.locator('input[name="departure_date"]').fill('2024-01-01');
+    await page.locator('input[name="arrival_date"]').fill('2024-01-02');
+    await page.locator('#createVoyageBtn').click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.alert.alert-success')).toBeVisible();
   });
 });

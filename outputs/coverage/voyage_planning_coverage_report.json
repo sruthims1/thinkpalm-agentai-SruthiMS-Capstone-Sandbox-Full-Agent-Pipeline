@@ -1,57 +1,54 @@
 {
   "feature_name": "Voyage planning",
-  "overall_coverage_pct": 20.0,
-  "p1_safety_coverage_pct": 50.0,
-  "quality_score": 50.3,
+  "overall_coverage_pct": 62.5,
+  "p1_safety_coverage_pct": 100.0,
+  "quality_score": 63.3,
   "dimensions": {
-    "req_coverage": 20.0,
-    "boundary_coverage": 40.0,
-    "negative_coverage": 100.0,
+    "req_coverage": 62.5,
+    "boundary_coverage": 100,
+    "negative_coverage": 26.3,
     "reg_traceability": 57.1
   },
   "gaps": [
-    "Not covered: Voyage plan must cover entire voyage from berth to berth",
-    "Partially covered: Bunker margin 5-15% on arrival (remedial action recommended)",
-    "Partially covered: 24-hour pre-arrival notice for EU ports",
-    "Not covered: FAL Form 1 (General Declaration) required for all vessel arrivals"
+    "Partially covered: Weather deviation must be confirmed by Master",
+    "Partially covered: Bunker consumption calculation validation",
+    "Not covered: FAL Form 1 (General Declaration) required for ALL vessel arrivals"
   ],
   "critical_gaps": [
-    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'"
+    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for ALL vessel arrivals'"
   ],
   "risk_level": "HIGH",
   "recommendations": [
-    "Add test coverage for: [SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'",
-    "P1 safety coverage is 50.0% \u2014 all safety-critical scenarios must reach 100%",
-    "Add boundary value tests \u2014 exact threshold scenarios prevent real-world incidents"
+    "Add test coverage for: [SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for ALL vessel arrivals'"
   ],
-  "summary": "Quality Score: 50.3/100 | P1: 50.0% | Coverage: 20.0%",
-  "p1_count": 2,
-  "p2_count": 3,
+  "summary": "Quality Score: 63.3/100 | P1: 100.0% | Coverage: 62.5%",
+  "p1_count": 4,
+  "p2_count": 4,
   "p3_count": 3,
   "psc_detention_triggers": [
-    "Voyage without waypoints (incomplete passage plan)",
-    "Weather deviation not confirmed by Master",
-    "Voyage plan does not cover departure berth to arrival berth",
-    "Route deviation not logged"
+    "Expired or missing FAL Form 1",
+    "No 24h pre-arrival notice for EU ports",
+    "Dangerous goods on board without 24h notice",
+    "Bunker margin < 5% on arrival"
   ],
   "regulation_coverage": [
     {
+      "regulation": "General / Operational",
+      "total": 6,
+      "covered": 3,
+      "coverage_pct": 50.0
+    },
+    {
       "regulation": "COLREGS 1972",
       "total": 1,
-      "covered": 0,
-      "coverage_pct": 0.0
+      "covered": 1,
+      "coverage_pct": 100.0
     },
     {
       "regulation": "FAL Convention / ISPS Code",
       "total": 1,
-      "covered": 0,
-      "coverage_pct": 0.0
-    },
-    {
-      "regulation": "General / Operational",
-      "total": 3,
       "covered": 1,
-      "coverage_pct": 33.3
+      "coverage_pct": 100.0
     }
   ]
 }
