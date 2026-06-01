@@ -1,42 +1,43 @@
 {
   "feature_name": "Voyage planning",
-  "overall_coverage_pct": 62.5,
+  "overall_coverage_pct": 60.0,
   "p1_safety_coverage_pct": 100.0,
-  "quality_score": 63.3,
+  "quality_score": 51.0,
   "dimensions": {
-    "req_coverage": 62.5,
-    "boundary_coverage": 100,
-    "negative_coverage": 26.3,
+    "req_coverage": 60.0,
+    "boundary_coverage": 75.0,
+    "negative_coverage": 0.0,
     "reg_traceability": 57.1
   },
   "gaps": [
-    "Partially covered: Weather deviation must be confirmed by Master",
-    "Partially covered: Bunker consumption calculation validation",
-    "Not covered: FAL Form 1 (General Declaration) required for ALL vessel arrivals"
+    "Partially covered: Bunker margin 5-15% on arrival (remedial action recommended)",
+    "Not covered: FAL Form 1 (General Declaration) required for all vessel arrivals"
   ],
   "critical_gaps": [
-    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for ALL vessel arrivals'"
+    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'"
   ],
   "risk_level": "HIGH",
   "recommendations": [
-    "Add test coverage for: [SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for ALL vessel arrivals'"
+    "Add test coverage for: [SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'",
+    "Add boundary value tests \u2014 exact threshold scenarios prevent real-world incidents"
   ],
-  "summary": "Quality Score: 63.3/100 | P1: 100.0% | Coverage: 62.5%",
-  "p1_count": 4,
-  "p2_count": 4,
-  "p3_count": 3,
+  "summary": "Quality Score: 51.0/100 | P1: 100.0% | Coverage: 60.0%",
+  "p1_count": 2,
+  "p2_count": 3,
+  "p3_count": 2,
   "psc_detention_triggers": [
-    "Expired or missing FAL Form 1",
+    "Voyage plan does not cover entire voyage from berth to berth",
+    "Bunker margin < 5% on arrival",
+    "Missing or incomplete FAL Form 1",
     "No 24h pre-arrival notice for EU ports",
-    "Dangerous goods on board without 24h notice",
-    "Bunker margin < 5% on arrival"
+    "Dangerous goods on board without 24h notice"
   ],
   "regulation_coverage": [
     {
       "regulation": "General / Operational",
-      "total": 6,
-      "covered": 3,
-      "coverage_pct": 50.0
+      "total": 3,
+      "covered": 1,
+      "coverage_pct": 33.3
     },
     {
       "regulation": "COLREGS 1972",
