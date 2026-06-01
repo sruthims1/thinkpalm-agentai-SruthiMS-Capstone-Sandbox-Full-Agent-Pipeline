@@ -241,7 +241,7 @@ cd frontend && npm run dev
 6. Switch to the **📄 Output** tab:
    - **✅ Test Cases** — numbered plain-English steps for each scenario
    - **🥒 Gherkin** — the full `.feature` file with BDD tags and Scenario Outlines
-   - **🎭 TypeScript** — copy/download the runnable `.spec.ts`
+   - **🎭 TypeScript** — copy/download the runnable `.spec.ts`; click **▶ Run Tests** to execute directly against the mock app (see below)
    - **⚠️ Risk** — domain risk level with quality dimension scores
    - **🔬 Audit** — traceability matrix, coverage gaps, executive summary
    - **⬇ Export QMetry CSV** — import directly into QMetry Test Manager
@@ -275,19 +275,36 @@ The `/api/jira/fetch?issue_key=SHIP-42` endpoint returns `feature_name` (from su
 
 ### Running the Generated Playwright Tests
 
+#### Option A — From the UI (recommended)
+
+1. Complete a pipeline run for any feature
+2. Go to **Output → 🎭 TypeScript** tab
+3. Ensure the mock maritime app is running on port 5000
+4. Click the **▶ Run Tests** button
+5. Results appear inline — each test shows ✅ pass / ❌ fail, duration, and error message on failure
+
+The UI calls `POST /api/tests/run/{feature_name}` which executes `npx playwright test` with a JSON reporter, parses the output, and returns structured results. No terminal access required.
+
+> **First time only:** Install Chromium before using Run Tests:
+> ```bash
+> cd outputs/typescript && npx playwright install chromium
+> ```
+
+#### Option B — From the terminal
+
 ```bash
 # Ensure mock app is running
 python mock_app/app.py
 
-# Install dependencies (first time only — package.json already present in outputs/typescript/)
+# Install dependencies (first time only — package.json already present)
 cd outputs/typescript && npm install
 npx playwright install chromium
 
-# Run a generated spec
+# Run a generated spec (headed — opens browser window)
 npx playwright test voyage_planning.spec.ts --headed
 
-# Run all generated specs
-npx playwright test
+# Run all generated specs with 2 parallel workers
+npx playwright test --workers=2
 
 # View HTML report
 npx playwright show-report
@@ -489,6 +506,7 @@ All tools are registered in `src/tools/tool_registry.py` with full JSON Schema d
 | `/api/tests/playwright/{name}` | GET | Get generated `.spec.ts` content |
 | `/api/tests/gherkin/{name}` | GET | Get generated `.feature` content |
 | `/api/tests/report/{name}` | GET | Get audit/coverage JSON report |
+| `/api/tests/run/{feature_name}` | POST | Execute Playwright spec against mock app — returns per-test pass/fail/duration |
 | `/api/kb/regulations` | GET | All ChromaDB maritime KB documents |
 | `/api/kb/query?topic=X` | GET | Semantic search over regulations |
 | `/api/memory/longterm` | GET | Past analyses from ChromaDB |
