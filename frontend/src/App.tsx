@@ -77,7 +77,7 @@ function App() {
       <header className="top-bar">
         <div className="brand">
           <span className="brand-icon">🚢</span>
-          <span className="brand-name">MarineOps QA Assistant</span>
+          <span className="brand-name">MarineQA Pilot</span>
           <span className="brand-sub">AI-Powered Maritime Test Automation</span>
         </div>
         <div className="nav-tabs">
