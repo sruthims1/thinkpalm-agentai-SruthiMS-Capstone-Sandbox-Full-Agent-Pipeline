@@ -180,9 +180,18 @@ class AutomationEngineerAgent:
         slug     = self._detect_slug(feature_name, gherkin_text)
         url_path = _FALLBACK_LOCATORS.get(slug, {}).get("url", f"/{slug.replace('_', '-')}")
 
-        # ── Step 1: Scrape live DOM ──────────────────────────────────────────
+        # ── Step 1: Scrape live DOM (20s hard timeout) ──────────────────────
         self._log(f"[{self.name}] Scraping live DOM at {url_path}…")
-        scraped = self._scraper.scrape(slug, url_path)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(self._scraper.scrape, slug, url_path)
+                scraped = future.result(timeout=20)
+        except concurrent.futures.TimeoutError:
+            self._log(f"[{self.name}] DOM scraping timed out (20s) — using fallback locators")
+            scraped = {"scraped": False, "error": "scraping timed out"}
+        except Exception as exc:
+            self._log(f"[{self.name}] DOM scraping failed ({exc}) — using fallback locators")
+            scraped = {"scraped": False, "error": str(exc)}
 
         if scraped.get("scraped"):
             self._log(

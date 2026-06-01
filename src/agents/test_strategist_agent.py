@@ -25,15 +25,17 @@ _TOOL_INSTRUCTIONS = (
 
 # Compact system prompt for the tool-calling path — intentionally short to stay
 # under Groq's payload limit when feature descriptions are long (e.g. from JIRA).
-# The full SYSTEM_PROMPT (with mock app UI detail) is used in the fallback path.
+# The full SYSTEM_PROMPT (with complete UI detail) is used in the fallback path.
 _TOOL_SYSTEM_PROMPT = (
-    "You are a BDD test analyst for maritime safety-critical software. "
-    "Generate a Gherkin feature file with 8-12 scenarios. "
-    "Rules: P1 safety-critical first. Use Scenario Outline for boundary values. "
-    "Tags: @p1-safety-critical|@p2-compliance|@p3-operational "
-    "+ @stcw|@mlc|@ism|@marpol|@solas|@fal "
-    "+ @happy-path|@boundary|@negative|@edge-case. "
-    "NO login steps. Apply Two-Deadline Pattern (T-30, T-0, T+1). "
+    "You are a BDD test analyst for a maritime web app at http://localhost:5000. "
+    "Generate 8-12 Gherkin scenarios. P1 safety-critical first. Scenario Outline for boundaries. "
+    "MANDATORY: Every Given = navigate to a URL. Every When = click/fill/select a UI element. "
+    "Every Then = assert visible text, badge, banner, or flash using a CSS selector or element name. "
+    "BANNED: 'the system must', 'the system blocks', 'audit log created', 'status updated to'. "
+    "Good Then: 'the .departure-block banner shows VESSEL DEPARTURE BLOCKED'. "
+    "Good Then: 'the .alert.alert-success flash is visible'. "
+    "NO login steps. Tags: @p1-safety-critical|@p2-compliance|@p3-operational "
+    "+ @stcw|@mlc|@ism|@marpol|@solas|@fal + @happy-path|@boundary|@negative|@edge-case. "
     "Return Gherkin feature file text only — no markdown fences."
     + _TOOL_INSTRUCTIONS
 )
@@ -45,20 +47,34 @@ SYSTEM_PROMPT = """You are a BDD test analyst for maritime safety-critical softw
 Generate Gherkin BDD scenarios that can be directly executed by a tester against the mock maritime web app at http://localhost:5000.
 
 The mock app has these pages and UI elements:
-- /crew-certs  — certification table (#certTable), status filter dropdown (#statusFilter), Renew button → modal (#renewModal) with fields #newExpiry and #certNumber, departure-block banner (#departureBlock), success flash (#flashMessage)
-- /fatigue     — officer list with violation/compliant badges, log rest hours form (#logRestBtn, #officerSelect, #restStart, #restEnd), reassign button (#reassignBtn), departure-block banner
-- /incidents   — incident list with severity/status/deadline, Report Incident button → modal (#incidentModal), Review button → review modal (#reviewModal), Notify Authority checkbox (#notifyAuthority), departure-block banner
-- /voyage      — voyage table (#voyageTable), Plan New Voyage button → modal (#newVoyageModal), piracy alert banner, Details button → fuel/ECA/weather panel, Confirm Route Deviation button (#confirmDeviation)
+- /crew-certs  — cert table (#certTable), status filter (#statusFilter: All/Expired/Expiring Soon/Valid), Renew button → modal (#renewModal, fields: input[name='new_expiry'], input[name='cert_number'], #renewSubmitBtn), .departure-block banner, .alert.alert-success flash, .badge-expired, .badge-expiring, .badge-valid
+- /fatigue     — officer list with .badge-violation / .badge-compliant, #logRestBtn → form (select[name='officer_id'], input[name='rest_start'], input[name='rest_end']), .btn-outline-warning reassign, .departure-block banner
+- /incidents   — incident list with .badge-high/medium/low, [data-bs-target="#newIncidentModal"] → #newIncidentModal (select[name='type/severity/vessel'], input[name='location'], textarea[name='description'], #reportIncidentBtn), Review → #reviewModal (#notifyAuthority, #submitReviewBtn), .departure-block banner
+- /voyage      — #voyageTable, [data-bs-target="#newVoyageModal"] → #newVoyageModal (select[name='vessel/fuel_type'], input[name='departure_port/arrival_port/departure_date/speed_kts/bunker_qty/distance_nm'], #createVoyageBtn), .departure-block banner, .badge.bg-warning.text-dark (ECA badge), button[onclick^="showVoyageDetails"] → #voyageDetailCard (#confirmDeviationBtn, #weather-deviation-alert), .alert.alert-success flash
 
 CRITICAL RULES:
-0. NO LOGIN STEPS. The mock app has NO authentication and NO login page. NEVER write "Given I am logged in as..." or any login/role setup step. Every scenario begins by navigating directly to a page URL.
-1. Generate 8-12 scenarios — P1 safety-critical first, use Scenario Outline for boundaries
-2. Every step must describe a real UI action: navigating to a page, clicking a button, filling a form field, selecting a dropdown option, or asserting visible text/banners/badges
-3. Tag every scenario: @p1-safety-critical|@p2-compliance|@p3-operational + @stcw|@mlc|@ism|@marpol|@solas|@fal + @happy-path|@boundary|@negative|@edge-case
-4. Two-Deadline Pattern: T-30, T-0 (boundary), T+1 (overdue) — use ONE Scenario Outline
-5. Block-Override-Audit: departure-block banner visible → form action taken → success flash confirms
-6. Use exact threshold values from domain data
-7. Given/When/Then steps only — no abstract steps like "the system checks compliance" without a concrete UI assertion
+0. NO LOGIN STEPS. No authentication exists. Every scenario begins: Given the user navigates to "http://localhost:5000/[page]"
+1. Generate 8-12 scenarios — P1 safety-critical first, Scenario Outline for boundaries
+2. EVERY Given step = navigate to a URL. EVERY When step = click a button, fill a field, select an option. EVERY Then step = assert visible text, badge, banner, or flash message using a real CSS selector or element name from the list above.
+3. BANNED phrases — NEVER write these:
+   - "the system must block / the system blocks / the system displays"
+   - "an audit log is created / the status is updated to / the system flags"
+   - "the navigator attempts / the plan must cover / the system checks"
+   Instead: assert what the USER SEES — a banner text, a badge colour, a flash message, a disabled button.
+4. GOOD step examples:
+   - Given the user navigates to "http://localhost:5000/voyage"
+   - When the user clicks the Plan New Voyage button
+   - When the user fills bunker_qty with "0" and clicks #createVoyageBtn
+   - Then the .departure-block banner is visible with text "VESSEL DEPARTURE BLOCKED"
+   - Then the .badge.bg-warning.text-dark shows "2 ECA"
+   - Then the .alert.alert-success flash message is visible
+   BAD step examples (do NOT write these):
+   - Given a voyage plan is created for "VOY-2026-047"
+   - Then the system must block the confirmation
+   - Then an audit log entry is created
+5. Tags: @p1-safety-critical|@p2-compliance|@p3-operational + @stcw|@mlc|@ism|@marpol|@solas|@fal + @happy-path|@boundary|@negative|@edge-case
+6. Two-Deadline Pattern: T-30/T-0/T+1 in ONE Scenario Outline
+7. Block-Override-Audit: .departure-block visible → user takes action → .alert.alert-success confirms → .departure-block gone
 
 Return Gherkin feature file text only. No prose, no markdown fencing."""
 
@@ -69,7 +85,35 @@ class TestStrategistAgent:
     name = "Test Strategist"
 
     def __init__(self, log_callback: Callable[[str], None] | None = None) -> None:
-        self._log = log_callback or log.info
+        self._log  = log_callback or log.info
+        self._app_kb = self._load_app_kb()
+
+    @staticmethod
+    def _load_app_kb():
+        try:
+            from memory.app_features_kb import AppFeaturesKB
+            return AppFeaturesKB()
+        except Exception:
+            return None
+
+    def _build_app_section(self, feature_name: str) -> str:
+        """Query App KB and return a compact required-workflows block for the user message."""
+        if not self._app_kb:
+            return ""
+        try:
+            app = self._app_kb.query(feature_name)
+            if not app:
+                return ""
+            workflows = "\n".join(f"  {i+1}. {w}" for i, w in enumerate(app["workflows"]))
+            states    = "\n".join(f"  - {s}" for s in app["testable_states"][:5])
+            return (
+                f"\nREQUIRED — write exactly ONE distinct scenario per workflow and "
+                f"one per testable state below. Do NOT repeat or combine them:\n"
+                f"Workflows (each must become its own scenario):\n{workflows}\n"
+                f"Testable states (each must become its own scenario):\n{states}"
+            )
+        except Exception:
+            return ""
 
     def generate(
         self,
@@ -87,10 +131,14 @@ class TestStrategistAgent:
             "edge_cases":  domain_analysis.get("mandatory_edge_cases", [])[:4],
         }
 
+        app_section = self._build_app_section(feature_name)
+        if app_section:
+            self._log(f"[{self.name}] App KB workflows injected into user message")
+
         user_msg = f"""Generate Gherkin BDD scenarios for: {feature_name}
 
 Requirements:
-{feature_description[:1200]}
+{feature_description[:1000]}
 
 Domain Data (use these exact values in scenarios):
 Regulations: {', '.join(enrichment['regulations'])}
@@ -98,6 +146,7 @@ P1 Safety Requirements: {'; '.join(enrichment['p1_reqs'])}
 Boundary Values: {'; '.join(enrichment['boundaries'])}
 PSC Detention Triggers: {'; '.join(enrichment['psc'])}
 Mandatory Edge Cases: {'; '.join(enrichment['edge_cases'])}
+{app_section}
 
 Apply Two-Deadline Pattern (use Scenario Outline), Block-Override-Audit Pattern.
 Generate 8-12 scenarios. P1 safety-critical scenarios first."""
