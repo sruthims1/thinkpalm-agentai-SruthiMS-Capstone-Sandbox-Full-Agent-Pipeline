@@ -1,55 +1,67 @@
 {
   "feature_name": "Voyage planning",
-  "overall_coverage_pct": 60.0,
-  "p1_safety_coverage_pct": 100.0,
-  "quality_score": 51.0,
+  "overall_coverage_pct": 28.6,
+  "p1_safety_coverage_pct": 50.0,
+  "quality_score": 32.0,
   "dimensions": {
-    "req_coverage": 60.0,
-    "boundary_coverage": 75.0,
+    "req_coverage": 28.6,
+    "boundary_coverage": 36.4,
     "negative_coverage": 0.0,
     "reg_traceability": 57.1
   },
   "gaps": [
-    "Partially covered: Bunker margin 5-15% on arrival (remedial action recommended)",
-    "Not covered: FAL Form 1 (General Declaration) required for all vessel arrivals"
+    "Partially covered: Voyage plan must cover entire voyage from berth to berth",
+    "Partially covered: Bunker margin < 5% on arrival",
+    "Not covered: 24-hour pre-arrival notice for EU ports",
+    "Not covered: FAL Form 1 (General Declaration) required for all vessel arrivals",
+    "Not covered: Dangerous goods on board: 24h notice mandatory regardless of voyage duration"
   ],
   "critical_gaps": [
-    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'"
+    "[SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'",
+    "[SAFETY-CRITICAL] No test for: 'Dangerous goods on board: 24h notice mandatory regardless of voyage duration' \u2014 Regulation: IMDG Code"
   ],
   "risk_level": "HIGH",
   "recommendations": [
     "Add test coverage for: [SAFETY-CRITICAL] No test for: 'FAL Form 1 (General Declaration) required for all vessel arrivals'",
+    "Add test coverage for: [SAFETY-CRITICAL] No test for: 'Dangerous goods on board: 24h notice mandatory regardless of voyage duration' \u2014 Regulation: IMDG Code",
+    "P1 safety coverage is 50.0% \u2014 all safety-critical scenarios must reach 100%",
     "Add boundary value tests \u2014 exact threshold scenarios prevent real-world incidents"
   ],
-  "summary": "Quality Score: 51.0/100 | P1: 100.0% | Coverage: 60.0%",
-  "p1_count": 2,
+  "summary": "Quality Score: 32.0/100 | P1: 50.0% | Coverage: 28.6%",
+  "p1_count": 4,
   "p2_count": 3,
   "p3_count": 2,
   "psc_detention_triggers": [
-    "Voyage plan does not cover entire voyage from berth to berth",
-    "Bunker margin < 5% on arrival",
-    "Missing or incomplete FAL Form 1",
-    "No 24h pre-arrival notice for EU ports",
-    "Dangerous goods on board without 24h notice"
+    "Expired certificate at departure",
+    "Fatigue hours below threshold",
+    "Voyage without waypoints = incomplete passage plan = SOLAS violation",
+    "Weather deviation not confirmed by Master",
+    "Bunker margin < 5% on arrival"
   ],
   "regulation_coverage": [
     {
-      "regulation": "General / Operational",
-      "total": 3,
-      "covered": 1,
-      "coverage_pct": 33.3
-    },
-    {
       "regulation": "COLREGS 1972",
       "total": 1,
-      "covered": 1,
-      "coverage_pct": 100.0
+      "covered": 0,
+      "coverage_pct": 0.0
     },
     {
       "regulation": "FAL Convention / ISPS Code",
       "total": 1,
-      "covered": 1,
-      "coverage_pct": 100.0
+      "covered": 0,
+      "coverage_pct": 0.0
+    },
+    {
+      "regulation": "IMDG Code",
+      "total": 1,
+      "covered": 0,
+      "coverage_pct": 0.0
+    },
+    {
+      "regulation": "General / Operational",
+      "total": 4,
+      "covered": 2,
+      "coverage_pct": 50.0
     }
   ]
 }

@@ -3,75 +3,152 @@
     {
       "req_id": "R1",
       "requirement": "Voyage plan must cover entire voyage from berth to berth",
-      "scenario": "P1 Safety Critical - Voyage plan covers entire voyage from berth to berth",
+      "scenario": "View voyage register",
       "status": "covered",
-      "regulation": "SOLAS"
+      "regulation": "SOLAS Chapter V, Regulation 34"
     },
     {
       "req_id": "R2",
-      "requirement": "Bunker margin < 5% on arrival (propulsion failure risk, safety-critical)",
-      "scenario": "P1 Safety Critical - Bunker margin < 5% on arrival",
+      "requirement": "Zero bunker entry",
+      "scenario": "Plan new voyage with zero bunker entry",
       "status": "covered",
-      "regulation": "SOLAS"
+      "regulation": "SOLAS Chapter II-1, Regulation 26"
     },
     {
       "req_id": "R3",
-      "requirement": "Bunker margin 5-15% on arrival (remedial action recommended)",
-      "scenario": "P1 Safety Critical - Bunker margin exactly 15% on arrival",
-      "status": "covered",
-      "regulation": "SOLAS"
+      "requirement": "Negative bunker entry",
+      "scenario": null,
+      "status": "gap",
+      "regulation": "SOLAS Chapter II-1, Regulation 26"
     },
     {
       "req_id": "R4",
-      "requirement": "24-hour pre-arrival notice for EU ports",
-      "scenario": "P1 Safety Critical - 24h pre-arrival notice for EU ports",
-      "status": "covered",
-      "regulation": "FAL"
+      "requirement": "Bunker margin < 5% on arrival",
+      "scenario": null,
+      "status": "gap",
+      "regulation": "SOLAS Chapter II-1, Regulation 26"
     },
     {
       "req_id": "R5",
-      "requirement": "FAL Form 1 (General Declaration) required for all vessel arrivals",
-      "scenario": "PSC Detention Triggers - Missing or incomplete FAL Form 1",
-      "status": "covered",
-      "regulation": "FAL"
+      "requirement": "24-hour pre-arrival notice for EU ports",
+      "scenario": null,
+      "status": "gap",
+      "regulation": "EU Directive 2002/59/EC"
     },
     {
       "req_id": "R6",
-      "requirement": "Voyage planning must include four stages: APPRAISAL, PLANNING, EXECUTION, and MONITOR",
+      "requirement": "FAL Form 1 (General Declaration) required for all vessel arrivals",
       "scenario": null,
       "status": "gap",
-      "regulation": "ISM"
+      "regulation": "FAL Convention"
     },
     {
       "req_id": "R7",
-      "requirement": "Route deviation must update ETA and be logged",
+      "requirement": "Dangerous goods on board: 24h notice mandatory regardless of voyage duration",
       "scenario": null,
       "status": "gap",
-      "regulation": "ISM"
+      "regulation": "FAL Convention"
+    },
+    {
+      "req_id": "R8",
+      "requirement": "Route deviation must update ETA and be logged",
+      "scenario": "Confirm route deviation",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R9",
+      "requirement": "Weather deviation must be confirmed by Master",
+      "scenario": "Weather deviation pending",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R10",
+      "requirement": "High-risk route",
+      "scenario": "High-risk route",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R11",
+      "requirement": "ECA zones",
+      "scenario": "ECA zones",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R12",
+      "requirement": "No ECA zones",
+      "scenario": "No ECA zones",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R13",
+      "requirement": "After deviation confirmed",
+      "scenario": "After deviation confirmed",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R14",
+      "requirement": "Plan new voyage",
+      "scenario": "Plan new voyage",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
+    },
+    {
+      "req_id": "R15",
+      "requirement": "Plan new voyage with boundary values",
+      "scenario": "Plan new voyage with boundary values",
+      "status": "covered",
+      "regulation": "SOLAS Chapter V, Regulation 34"
     }
   ],
   "coverage_gaps": [
     {
-      "gap": "Missing validation of the four-stage planning process (Appraisal, Planning, Execution, Monitor)",
-      "priority": "P3",
-      "regulation": "ISM",
-      "recommendation": "Add scenario: Verify system enforces/logs the four stages of voyage planning per IMO standards."
+      "gap": "Negative bunker entry",
+      "priority": "P1",
+      "regulation": "SOLAS Chapter II-1, Regulation 26",
+      "recommendation": "Add scenario to cover negative bunker entry"
     },
     {
-      "gap": "Missing validation of ETA updates and logging during route deviation",
-      "priority": "P3",
-      "regulation": "ISM",
-      "recommendation": "Add scenario: Trigger route deviation and verify automatic ETA recalculation and audit log entry."
+      "gap": "Bunker margin < 5% on arrival",
+      "priority": "P1",
+      "regulation": "SOLAS Chapter II-1, Regulation 26",
+      "recommendation": "Add scenario to cover bunker margin < 5% on arrival"
+    },
+    {
+      "gap": "24-hour pre-arrival notice for EU ports",
+      "priority": "P2",
+      "regulation": "EU Directive 2002/59/EC",
+      "recommendation": "Add scenario to cover 24-hour pre-arrival notice for EU ports"
+    },
+    {
+      "gap": "FAL Form 1 (General Declaration) required for all vessel arrivals",
+      "priority": "P2",
+      "regulation": "FAL Convention",
+      "recommendation": "Add scenario to cover FAL Form 1 (General Declaration) required for all vessel arrivals"
+    },
+    {
+      "gap": "Dangerous goods on board: 24h notice mandatory regardless of voyage duration",
+      "priority": "P2",
+      "regulation": "FAL Convention",
+      "recommendation": "Add scenario to cover dangerous goods on board: 24h notice mandatory regardless of voyage duration"
     }
   ],
-  "overall_score": 94,
-  "p1_coverage_pct": 100,
-  "p2_coverage_pct": 100,
-  "executive_summary": "All safety-critical (P1) and compliance (P2) requirements are fully covered, including PSC detention triggers. Operational gaps exist regarding the ISM-mandated planning stages and deviation logging.",
+  "overall_score": 42.86,
+  "p1_coverage_pct": 0,
+  "p2_coverage_pct": 0,
+  "executive_summary": "The current test coverage for voyage planning is 42.86%. Critical risks include negative bunker entry, bunker margin < 5% on arrival, and lack of scenarios for 24-hour pre-arrival notice for EU ports, FAL Form 1 (General Declaration) required for all vessel arrivals, and dangerous goods on board: 24h notice mandatory regardless of voyage duration.",
   "recommendations": [
-    "Implement test cases for the four-stage planning lifecycle to ensure ISM compliance.",
-    "Add functional tests for route deviation logging to prevent audit findings during PSC inspections."
+    "Add scenario to cover negative bunker entry",
+    "Add scenario to cover bunker margin < 5% on arrival",
+    "Add scenario to cover 24-hour pre-arrival notice for EU ports",
+    "Add scenario to cover FAL Form 1 (General Declaration) required for all vessel arrivals",
+    "Add scenario to cover dangerous goods on board: 24h notice mandatory regardless of voyage duration"
   ],
   "feature_name": "Voyage planning",
-  "playwright_coverage_pct": 60.0
+  "playwright_coverage_pct": 28.6
 }

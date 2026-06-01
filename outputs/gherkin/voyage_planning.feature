@@ -1,99 +1,99 @@
 Feature: Voyage Planning
 
-  Scenario: P1 Safety Critical - Voyage plan covers entire voyage from berth to berth
-    Given the voyage plan covers the entire voyage from berth to berth
-    When the navigator reviews the voyage details
-    Then the voyage plan is compliant with SOLAS Chapter V Regulation 34
+  @p1-safety-critical @stcw @solas @fal
+  Scenario: View voyage register
+    Given the user navigates to "http://localhost:5000/voyage"
+    Then the .card-body table (voyage table) is visible with voyage rows
 
-  Scenario: P1 Safety Critical - Bunker margin < 5% on arrival
-    Given the bunker margin is less than 5% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is flagged as safety-critical
+  @p1-safety-critical @stcw @solas @fal
+  Scenario: View voyage details
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks the button[onclick^='showVoyageDetails']
+    Then the #voyageDetailCard is visible
+    And the #weather-deviation-alert is visible
 
-  Scenario: P1 Safety Critical - Bunker margin exactly 5% on arrival
-    Given the bunker margin is exactly 5% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is flagged as safety-critical
+  @p1-safety-critical @stcw @solas @fal
+  Scenario: Confirm route deviation
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks the button[onclick^='showVoyageDetails']
+    And the user clicks the #confirmDeviationBtn inside #voyageDetailCard
+    Then the .alert.alert-success flash message is visible
 
-  Scenario: P1 Safety Critical - Bunker margin exactly 15% on arrival
-    Given the bunker margin is exactly 15% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is compliant with SOLAS Chapter II-1 Regulation 26
+  @p1-safety-critical @stcw @solas @fal
+  Scenario: Plan new voyage
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks [data-bs-target='#newVoyageModal']
+    And the user fills select[name='vessel'] with "Vessel 1"
+    And the user fills select[name='fuel_type'] with "Fuel Type 1"
+    And the user fills input[name='departure_port'] with "Departure Port 1"
+    And the user fills input[name='arrival_port'] with "Arrival Port 1"
+    And the user fills input[name='departure_date'] with "2024-01-01"
+    And the user fills input[name='speed_kts'] with "10"
+    And the user fills input[name='bunker_qty'] with "100"
+    And the user fills input[name='distance_nm'] with "1000"
+    And the user clicks #createVoyageBtn
+    Then the .alert.alert-success flash message is visible
 
-  Scenario: P1 Safety Critical - 24h pre-arrival notice for EU ports
-    Given the 24h pre-arrival notice is exactly at the threshold for EU ports
-    When the navigator reviews the voyage details
-    Then the 24h pre-arrival notice is compliant with EU Directive 2002/59/EC
+  @p2-compliance @stcw @solas @fal
+  Scenario: High-risk route
+    Given the user navigates to "http://localhost:5000/voyage"
+    Then the #piracy-alert-VOY-2026-046 is visible on page load without user action
 
-  Scenario: P2 Compliance - Voyage plan does not cover entire voyage from berth to berth
-    Given the voyage plan does not cover the entire voyage from berth to berth
-    When the navigator reviews the voyage details
-    Then the voyage plan is flagged as non-compliant with SOLAS Chapter V Regulation 34
+  @p2-compliance @stcw @solas @fal
+  Scenario: ECA zones
+    Given the user navigates to "http://localhost:5000/voyage"
+    Then the .badge.bg-warning.text-dark shows "2" in voyage table row
 
-  Scenario: P2 Compliance - Bunker margin < 5% on arrival
-    Given the bunker margin is less than 5% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is flagged as non-compliant with SOLAS Chapter II-1 Regulation 26
+  @p2-compliance @stcw @solas @fal
+  Scenario: No ECA zones
+    Given the user navigates to "http://localhost:5000/voyage"
+    Then the .badge.bg-success shows "None" in voyage table row
 
-  Scenario Outline: Boundary Values - Bunker margin
-    Given the bunker margin is <"{bunker_margin}%"
-    When the navigator reviews the voyage details
-    Then the bunker margin is <"{compliance_status}" compliant
+  @p2-compliance @stcw @solas @fal
+  Scenario: Weather deviation pending
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks the button[onclick^='showVoyageDetails']
+    Then the #weather-deviation-alert is visible inside #voyageDetailCard
+
+  @p2-compliance @stcw @solas @fal
+  Scenario: After deviation confirmed
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks the button[onclick^='showVoyageDetails']
+    And the user clicks the #confirmDeviationBtn inside #voyageDetailCard
+    Then the .alert.alert-success flash message is visible
+    And the #weather-deviation-alert is gone
+
+  @boundary @stcw @solas @fal
+  Scenario Outline: Plan new voyage with boundary values
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks [data-bs-target='#newVoyageModal']
+    And the user fills select[name='vessel'] with "Vessel 1"
+    And the user fills select[name='fuel_type'] with "Fuel Type 1"
+    And the user fills input[name='departure_port'] with "Departure Port 1"
+    And the user fills input[name='arrival_port'] with "Arrival Port 1"
+    And the user fills input[name='departure_date'] with "2024-01-01"
+    And the user fills input[name='speed_kts'] with "10"
+    And the user fills input[name='bunker_qty'] with "<bunker_qty>"
+    And the user fills input[name='distance_nm'] with "1000"
+    And the user clicks #createVoyageBtn
+    Then the .alert.alert-success flash message is visible
     Examples:
-      | bunker_margin | compliance_status |
-      | 15            | compliant         |
-      | 5             | safety-critical   |
+      | bunker_qty |
+      | 0          |
+      | -1         |
+      | 1001       |
 
-  Scenario Outline: Boundary Values - 24h pre-arrival notice for EU ports
-    Given the 24h pre-arrival notice is <"{notice_hours}h"
-    When the navigator reviews the voyage details
-    Then the 24h pre-arrival notice is <"{compliance_status}" compliant
-    Examples:
-      | notice_hours | compliance_status |
-      | 24           | compliant         |
-      | 23           | non-compliant     |
-
-  Scenario: PSC Detention Triggers - Missing or incomplete FAL Form 1
-    Given the FAL Form 1 is missing or incomplete
-    When the navigator reviews the voyage details
-    Then the FAL Form 1 is flagged as non-compliant with FAL Convention
-
-  Scenario: PSC Detention Triggers - No 24h pre-arrival notice for EU ports
-    Given the 24h pre-arrival notice is missing for EU ports
-    When the navigator reviews the voyage details
-    Then the 24h pre-arrival notice is flagged as non-compliant with EU Directive 2002/59/EC
-
-  Scenario: Happy Path - Voyage detail panel shows fuel plan and weather alert
-    Given the voyage details are visible
-    When the navigator clicks the Details button
-    Then the fuel plan and weather alert are visible in the voyage detail panel
-
-  Scenario: Edge Case - Voyage plan exactly covers entire voyage from berth to berth
-    Given the voyage plan exactly covers the entire voyage from berth to berth
-    When the navigator reviews the voyage details
-    Then the voyage plan is compliant with SOLAS Chapter V Regulation 34
-
-  Scenario: Edge Case - Bunker margin exactly 15% on arrival
-    Given the bunker margin is exactly 15% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is compliant with SOLAS Chapter II-1 Regulation 26
-
-  Scenario: Edge Case - Bunker margin exactly 5% on arrival
-    Given the bunker margin is exactly 5% on arrival
-    When the navigator reviews the voyage details
-    Then the bunker margin is flagged as safety-critical
-
-  Scenario: Edge Case - 24h notice exactly at threshold
-    Given the 24h pre-arrival notice is exactly at the threshold for EU ports
-    When the navigator reviews the voyage details
-    Then the 24h pre-arrival notice is compliant with EU Directive 2002/59/EC
-
-Feature: Voyage Planning @p1-safety-critical @stcw @solas @fal @marpol @ism @happy-path @boundary @negative @edge-case
-Feature: Voyage Planning @p2-compliance @stcw @solas @fal @marpol @ism @happy-path @boundary @negative @edge-case
-Feature: Voyage Planning @p3-operational @stcw @solas @fal @marpol @ism @happy-path @boundary @negative @edge-case
-
-validate_gherkin output:
-scenario_count: 12
-safety_tagged_count: 6
-
-Final Gherkin feature file text remains the same.
+  @edge-case @stcw @solas @fal
+  Scenario: Plan new voyage with zero bunker entry
+    Given the user navigates to "http://localhost:5000/voyage"
+    When the user clicks [data-bs-target='#newVoyageModal']
+    And the user fills select[name='vessel'] with "Vessel 1"
+    And the user fills select[name='fuel_type'] with "Fuel Type 1"
+    And the user fills input[name='departure_port'] with "Departure Port 1"
+    And the user fills input[name='arrival_port'] with "Arrival Port 1"
+    And the user fills input[name='departure_date'] with "2024-01-01"
+    And the user fills input[name='speed_kts'] with "10"
+    And the user fills input[name='bunker_qty'] with "0"
+    And the user fills input[name='distance_nm'] with "1000"
+    And the user clicks #createVoyageBtn
+    Then the .alert.alert-success flash message is visible
