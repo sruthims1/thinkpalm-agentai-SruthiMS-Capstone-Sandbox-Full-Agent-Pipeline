@@ -37,9 +37,10 @@ class MaritimeDomainAgent:
     name = "Maritime Domain Expert"
 
     def __init__(self, log_callback: Callable[[str], None] | None = None) -> None:
-        self._log = log_callback or log.info
-        self._kb  = self._load_kb()
-        self._ltm = self._load_ltm()
+        self._log    = log_callback or log.info
+        self._kb     = self._load_kb()
+        self._ltm    = self._load_ltm()
+        self._app_kb = self._load_app_kb()
 
     @staticmethod
     def _load_kb():
@@ -57,6 +58,15 @@ class MaritimeDomainAgent:
             return LongTermMemory()
         except Exception as exc:
             log.warning(f"LTM unavailable: {exc}")
+            return None
+
+    @staticmethod
+    def _load_app_kb():
+        try:
+            from memory.app_features_kb import AppFeaturesKB
+            return AppFeaturesKB()
+        except Exception as exc:
+            log.warning(f"App KB unavailable: {exc}")
             return None
 
     def _query_kb(self, feature_name: str, feature_description: str) -> str:
@@ -85,11 +95,14 @@ class MaritimeDomainAgent:
 
         kb_context  = self._query_kb(feature_name, feature_description)
         ltm_context = self._query_ltm(feature_name, feature_description)
+        app_context = self._query_app_kb(feature_name)
 
         if kb_context:
             self._log(f"[{self.name}] KB enrichment: {kb_context.count('[')} regulation(s) retrieved")
         if ltm_context:
             self._log(f"[{self.name}] LTM enrichment: prior analysis found for similar feature")
+        if app_context:
+            self._log(f"[{self.name}] App KB enrichment: mock app feature context loaded")
 
         user_msg = f"""Analyze this maritime software feature for safety and compliance risks:
 
@@ -102,7 +115,10 @@ Description:
 
 {ltm_context}
 
-Return a JSON risk assessment using the exact thresholds from the KB context above."""
+{app_context}
+
+Return a JSON risk assessment using the exact thresholds from the KB context above.
+Ensure mandatory_edge_cases covers every workflow and testable state listed in the App Feature Context."""
 
         try:
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
@@ -124,6 +140,28 @@ Return a JSON risk assessment using the exact thresholds from the KB context abo
         )
         session_memory.set("domain_analysis", result)
         return result
+
+    def _query_app_kb(self, feature_name: str) -> str:
+        """Return compact mock app feature context for the given feature."""
+        if not self._app_kb:
+            return ""
+        try:
+            result = self._app_kb.query(feature_name)
+            if not result:
+                return ""
+            # Keep output token-efficient: pipe-separated, max 3 workflows + 4 states + 2 validations
+            workflows = " | ".join(result["workflows"][:3])
+            states    = " | ".join(result["testable_states"][:4])
+            validations = " | ".join(result["validations"][:2])
+            return (
+                f"=== App Feature Context: {result['feature']} ({result['url']}) ===\n"
+                f"Workflows: {workflows}\n"
+                f"Testable states: {states}\n"
+                f"Validations: {validations}"
+            )
+        except Exception as exc:
+            log.warning(f"[{self.name}] App KB query failed: {exc}")
+            return ""
 
     def _query_ltm(self, feature_name: str, feature_description: str) -> str:
         """Search long-term memory for prior analyses of similar features."""
